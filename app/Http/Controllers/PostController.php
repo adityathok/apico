@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PostController extends Controller
@@ -34,7 +35,7 @@ class PostController extends Controller
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', 'unique:posts,slug'],
-            'image' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'max:2048'],
             'excerpt' => ['nullable', 'string'],
             'content' => ['required', 'string'],
             'published_at' => ['nullable', 'date'],
@@ -43,6 +44,10 @@ class PostController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ]);
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = $this->storeImage($request);
+        }
 
         $post = Post::create(Arr::except($validated, ['category_ids', 'tag_ids']));
         $post->categories()->sync($validated['category_ids'] ?? []);
@@ -68,7 +73,7 @@ class PostController extends Controller
             'user_id' => ['sometimes', 'required', 'integer', 'exists:users,id'],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('posts', 'slug')->ignore($post)],
-            'image' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'max:2048'],
             'excerpt' => ['nullable', 'string'],
             'content' => ['sometimes', 'required', 'string'],
             'published_at' => ['nullable', 'date'],
@@ -77,6 +82,11 @@ class PostController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ]);
+
+        if ($request->hasFile('image')) {
+            $this->deleteImage($post);
+            $validated['image'] = $this->storeImage($request);
+        }
 
         $post->update(Arr::except($validated, ['category_ids', 'tag_ids']));
 
@@ -96,8 +106,23 @@ class PostController extends Controller
      */
     public function destroy(Post $post): Response
     {
+        $this->deleteImage($post);
         $post->delete();
 
         return response()->noContent();
+    }
+
+    private function storeImage(Request $request): string
+    {
+        return $request->file('image')->store('post/'.now()->format('y-m'), 'public');
+    }
+
+    private function deleteImage(Post $post): void
+    {
+        if ($post->image === null) {
+            return;
+        }
+
+        Storage::disk('public')->delete($post->image);
     }
 }

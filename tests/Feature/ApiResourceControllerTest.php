@@ -4,17 +4,22 @@ use App\Models\Category;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 test('post controller stores a post with category and tag pivots', function () {
+    Storage::fake('public');
+
     $user = User::factory()->create();
     $category = Category::factory()->create();
     $tag = Tag::factory()->create();
+    $image = UploadedFile::fake()->image('api.jpg');
 
-    $response = $this->postJson('/api/posts', [
+    $response = $this->post('/api/posts', [
         'user_id' => $user->id,
         'title' => 'Getting Started With APIs',
         'slug' => 'getting-started-with-apis',
-        'image' => 'posts/api.jpg',
+        'image' => $image,
         'excerpt' => 'A short API intro.',
         'content' => 'Complete API article content.',
         'published_at' => now()->toDateTimeString(),
@@ -30,24 +35,40 @@ test('post controller stores a post with category and tag pivots', function () {
     $post = Post::where('slug', 'getting-started-with-apis')->firstOrFail();
 
     expect($post->categories()->pluck('categories.id')->all())->toBe([$category->id])
-        ->and($post->tags()->pluck('tags.id')->all())->toBe([$tag->id]);
+        ->and($post->tags()->pluck('tags.id')->all())->toBe([$tag->id])
+        ->and($post->image)->toStartWith('post/'.now()->format('y-m').'/');
+
+    Storage::disk('public')->assertExists($post->image);
 });
 
 test('post controller updates and deletes a post', function () {
-    $post = Post::factory()->create();
-    $category = Category::factory()->create();
+    Storage::fake('public');
 
-    $this->patchJson("/api/posts/{$post->id}", [
+    $oldImage = 'post/'.now()->format('y-m').'/old.jpg';
+    Storage::disk('public')->put($oldImage, 'old image');
+
+    $post = Post::factory()->create(['image' => $oldImage]);
+    $category = Category::factory()->create();
+    $newImage = UploadedFile::fake()->image('updated.jpg');
+
+    $this->patch("/api/posts/{$post->id}", [
         'title' => 'Updated Post Title',
+        'image' => $newImage,
         'category_ids' => [$category->id],
     ])
         ->assertOk()
         ->assertJsonPath('data.title', 'Updated Post Title')
         ->assertJsonPath('data.categories.0.id', $category->id);
 
+    $post->refresh();
+
+    Storage::disk('public')->assertMissing($oldImage);
+    Storage::disk('public')->assertExists($post->image);
+
     $this->deleteJson("/api/posts/{$post->id}")->assertNoContent();
 
     $this->assertDatabaseMissing('posts', ['id' => $post->id]);
+    Storage::disk('public')->assertMissing($post->image);
 });
 
 test('category controller stores updates and deletes a category', function () {
