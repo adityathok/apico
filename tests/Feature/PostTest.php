@@ -2,6 +2,7 @@
 
 use App\Models\Post;
 use App\Models\User;
+use Database\Seeders\PostSeeder;
 use Illuminate\Support\Facades\Schema;
 
 test('posts table has the expected columns', function () {
@@ -10,6 +11,7 @@ test('posts table has the expected columns', function () {
         'user_id',
         'title',
         'slug',
+        'image',
         'excerpt',
         'content',
         'published_at',
@@ -33,4 +35,27 @@ test('published at is cast to datetime', function () {
     ]);
 
     expect($post->published_at)->toBeInstanceOf(DateTimeInterface::class);
+});
+
+test('image path is mass assignable', function () {
+    $post = Post::factory()->create([
+        'image' => 'posts/example.jpg',
+    ]);
+
+    expect($post->image)->toBe('posts/example.jpg');
+});
+
+test('post seeder creates posts for seeded users once', function () {
+    $admin = User::factory()->create(['email' => 'admin@example.com']);
+    $testUser = User::factory()->create(['email' => 'test@example.com']);
+
+    $this->seed(PostSeeder::class);
+    $this->seed(PostSeeder::class);
+
+    expect($admin->posts()->count())->toBe(5)
+        ->and($testUser->posts()->count())->toBe(5)
+        ->and(Post::count())->toBe(10)
+        ->and(Post::query()->pluck('image')->every(
+            fn (?string $image): bool => is_string($image) && str_starts_with($image, 'https://images.unsplash.com/'),
+        ))->toBeTrue();
 });

@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        //jika tidak ada user admin, maka buat user admin
+        // jika tidak ada user admin, maka buat user admin
         if (User::where('email', 'admin@example.com')->count() == 0) {
             User::factory()->create([
                 'name' => 'Admin',
@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        //jika tidak ada user test, maka buat user test
+        // jika tidak ada user test, maka buat user test
         if (User::where('email', 'test@example.com')->count() == 0) {
             User::factory()->create([
                 'name' => 'Test User',
@@ -34,5 +34,7 @@ class DatabaseSeeder extends Seeder
                 'password' => bcrypt('password'),
             ]);
         }
+
+        $this->call(PostSeeder::class);
     }
 }
