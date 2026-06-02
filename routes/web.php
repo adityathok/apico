@@ -6,6 +6,7 @@ Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::inertia('posts', 'Posts')->name('posts');
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';
