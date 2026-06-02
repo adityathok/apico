@@ -32,7 +32,8 @@ export default defineConfig({
             formVariants: true,
         }),
         ui({
-            router: 'inertia'
-        })
+            colorMode: false,
+            router: 'inertia',
+        }),
     ],
 });
