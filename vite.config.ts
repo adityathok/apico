@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
+import ui from '@nuxt/ui/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -30,5 +31,8 @@ export default defineConfig({
         wayfinder({
             formVariants: true,
         }),
+        ui({
+            router: 'inertia'
+        })
     ],
 });
