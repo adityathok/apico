@@ -583,7 +583,6 @@ onMounted(() => {
                     class="mb-4"
                 />
 
-
                 <UForm
                     id="category-form"
                     :state="state"

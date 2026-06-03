@@ -15,7 +15,7 @@ import { Form, Head, Link } from '@inertiajs/vue3';
     <Head title="Login" />
 
     <main
-        class="flex min-h-screen items-center justify-center px-6 py-10 bg-[url('https://images.unsplash.com/photo-1743742268741-1cca41270b84?q=80&w=2400&auto=format&fit=crop')]"
+        class="flex min-h-screen items-center justify-center bg-[url('https://images.unsplash.com/photo-1743742268741-1cca41270b84?q=80&w=2400&auto=format&fit=crop')] px-6 py-10"
     >
         <section class="w-full max-w-md">
             <div class="mb-8 text-center">

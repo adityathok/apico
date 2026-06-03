@@ -105,13 +105,17 @@ const deleteMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
 
 const isEditing = computed(() => editingTagId.value !== null);
-const modalTitle = computed(() => (isEditing.value ? 'Edit Tag' : 'Create Tag'));
+const modalTitle = computed(() =>
+    isEditing.value ? 'Edit Tag' : 'Create Tag',
+);
 const modalDescription = computed(() =>
     isEditing.value
         ? 'Update detail tag yang sudah ada.'
         : 'Tambahkan tag baru untuk menandai post.',
 );
-const submitLabel = computed(() => (isEditing.value ? 'Update Tag' : 'Create Tag'));
+const submitLabel = computed(() =>
+    isEditing.value ? 'Update Tag' : 'Create Tag',
+);
 const deleteModalDescription = computed(() => {
     if (!deletingTag.value) {
         return 'Tag ini akan dihapus secara permanen.';
@@ -128,7 +132,11 @@ const filteredTags = computed(() => {
     }
 
     return tagData.value.filter((tag) => {
-        const searchableContent = [tag.name, tag.slug, String(tag.posts_count ?? 0)]
+        const searchableContent = [
+            tag.name,
+            tag.slug,
+            String(tag.posts_count ?? 0),
+        ]
             .filter(Boolean)
             .join(' ')
             .toLowerCase();
@@ -319,7 +327,9 @@ const handleValidationErrors = (error: unknown): void => {
     );
 };
 
-const submitTag = async (_event: FormSubmitEvent<TagFormState>): Promise<void> => {
+const submitTag = async (
+    _event: FormSubmitEvent<TagFormState>,
+): Promise<void> => {
     isSaving.value = true;
     formMessage.value = null;
     serverErrors.value = {};
@@ -433,7 +443,9 @@ onMounted(() => {
             ]"
         />
 
-        <div class="overflow-hidden rounded-lg border border-default bg-default">
+        <div
+            class="overflow-hidden rounded-lg border border-default bg-default"
+        >
             <UTable
                 :data="filteredTags"
                 :columns="columns"
@@ -500,8 +512,13 @@ onMounted(() => {
 
                 <template #empty>
                     <div class="flex flex-col items-center gap-2 py-10">
-                        <UIcon name="i-lucide-inbox" class="size-8 text-muted" />
-                        <p class="font-medium text-highlighted">Tidak ada tag</p>
+                        <UIcon
+                            name="i-lucide-inbox"
+                            class="size-8 text-muted"
+                        />
+                        <p class="font-medium text-highlighted">
+                            Tidak ada tag
+                        </p>
                         <p class="text-sm text-muted">
                             Data belum tersedia atau tidak cocok dengan
                             pencarian.

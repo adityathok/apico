@@ -13,8 +13,24 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, posts, categories, tags, licenses } from '@/routes';
-import { FileText, FolderGit2, LayoutGrid, BookOpen, Folder, Tag, Key } from 'lucide-vue-next';
+import {
+    dashboard,
+    posts,
+    categories,
+    tags,
+    licenses,
+    websites,
+} from '@/routes';
+import {
+    FileText,
+    FolderGit2,
+    LayoutGrid,
+    BookOpen,
+    Folder,
+    Tag,
+    Key,
+    Globe,
+} from 'lucide-vue-next';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -42,6 +58,11 @@ const mainNavItems: NavItem[] = [
         title: 'Licenses',
         href: licenses(),
         icon: Key,
+    },
+    {
+        title: 'Websites',
+        href: websites(),
+        icon: Globe,
     },
 ];
 

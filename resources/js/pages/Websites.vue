@@ -3,24 +3,22 @@ import { Head } from '@inertiajs/vue3';
 import type { FormError, FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { licenses } from '@/routes';
+import { websites } from '@/routes';
 
-type LicenseUser = {
-    id: number;
-    name: string;
-    email: string;
-};
+type WebsiteStatus = 'active' | 'invalid';
 
-type License = {
+type Website = {
     id: number;
-    user_id: number | null;
-    code: string;
-    is_active: boolean;
-    used_at: string | null;
-    expires_at: string | null;
+    domain: string;
+    ip_address: string | null;
+    license_key: string;
+    status: WebsiteStatus;
+    theme_version: string | null;
+    plugin_version: string | null;
+    wp_version: string | null;
+    php_version: string | null;
     created_at: string;
     updated_at: string;
-    user?: LicenseUser | null;
 };
 
 type PaginationLink = {
@@ -40,8 +38,8 @@ type PaginationMeta = {
     total: number;
 };
 
-type LicensesResponse = {
-    data: License[];
+type WebsitesResponse = {
+    data: Website[];
     meta: PaginationMeta;
 };
 
@@ -49,20 +47,26 @@ type ResourceResponse<T> = {
     data: T;
 };
 
-type LicenseFormState = {
-    user_id: string;
-    code: string;
-    is_active: boolean;
-    used_at: string;
-    expires_at: string;
+type WebsiteFormState = {
+    domain: string;
+    ip_address: string;
+    license_key: string;
+    status: WebsiteStatus;
+    theme_version: string;
+    plugin_version: string;
+    wp_version: string;
+    php_version: string;
 };
 
-type LicensePayload = {
-    user_id: number | null;
-    code: string;
-    is_active: boolean;
-    used_at: string | null;
-    expires_at: string | null;
+type WebsitePayload = {
+    domain: string;
+    ip_address: string | null;
+    license_key: string;
+    status: WebsiteStatus;
+    theme_version: string | null;
+    plugin_version: string | null;
+    wp_version: string | null;
+    php_version: string | null;
 };
 
 type ValidationResponse = {
@@ -74,33 +78,41 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
-                title: 'Licenses',
-                href: licenses(),
+                title: 'Websites',
+                href: websites(),
             },
         ],
     },
 });
 
-const columns: TableColumn<License>[] = [
+const columns: TableColumn<Website>[] = [
     {
-        accessorKey: 'code',
-        header: 'License',
+        accessorKey: 'domain',
+        header: 'Website',
     },
     {
-        accessorKey: 'user',
-        header: 'User',
-    },
-    {
-        accessorKey: 'is_active',
+        accessorKey: 'status',
         header: 'Status',
     },
     {
-        accessorKey: 'used_at',
-        header: 'Used',
+        accessorKey: 'license_key',
+        header: 'License',
     },
     {
-        accessorKey: 'expires_at',
-        header: 'Expires',
+        accessorKey: 'ip_address',
+        header: 'IP Address',
+    },
+    {
+        accessorKey: 'plugin_version',
+        header: 'Plugin',
+    },
+    {
+        accessorKey: 'wp_version',
+        header: 'WordPress',
+    },
+    {
+        accessorKey: 'php_version',
+        header: 'PHP',
     },
     {
         accessorKey: 'created_at',
@@ -111,15 +123,23 @@ const columns: TableColumn<License>[] = [
     },
 ];
 
-const state = reactive<LicenseFormState>({
-    user_id: '',
-    code: '',
-    is_active: true,
-    used_at: '',
-    expires_at: '',
+const statusOptions = [
+    { label: 'Active', value: 'active' },
+    { label: 'Invalid', value: 'invalid' },
+];
+
+const state = reactive<WebsiteFormState>({
+    domain: '',
+    ip_address: '',
+    license_key: '',
+    status: 'active',
+    theme_version: '',
+    plugin_version: '',
+    wp_version: '',
+    php_version: '',
 });
 
-const licenseData = ref<License[]>([]);
+const websiteData = ref<Website[]>([]);
 const meta = ref<PaginationMeta | null>(null);
 const search = ref('');
 const currentPage = ref(1);
@@ -128,47 +148,50 @@ const isSaving = ref(false);
 const isDeleting = ref(false);
 const isModalOpen = ref(false);
 const isDeleteModalOpen = ref(false);
-const editingLicenseId = ref<number | null>(null);
-const deletingLicense = ref<License | null>(null);
+const editingWebsiteId = ref<number | null>(null);
+const deletingWebsite = ref<Website | null>(null);
 const errorMessage = ref<string | null>(null);
 const formMessage = ref<string | null>(null);
 const deleteMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
 
-const isEditing = computed(() => editingLicenseId.value !== null);
+const isEditing = computed(() => editingWebsiteId.value !== null);
 const modalTitle = computed(() =>
-    isEditing.value ? 'Edit License' : 'Create License',
+    isEditing.value ? 'Edit Website' : 'Create Website',
 );
 const modalDescription = computed(() =>
     isEditing.value
-        ? 'Update detail license yang sudah ada.'
-        : 'Tambahkan license baru untuk user.',
+        ? 'Update detail website yang sudah ada.'
+        : 'Tambahkan website baru yang memakai license.',
 );
 const submitLabel = computed(() =>
-    isEditing.value ? 'Update License' : 'Create License',
+    isEditing.value ? 'Update Website' : 'Create Website',
 );
 const deleteModalDescription = computed(() => {
-    if (!deletingLicense.value) {
-        return 'License ini akan dihapus secara permanen.';
+    if (!deletingWebsite.value) {
+        return 'Website ini akan dihapus secara permanen.';
     }
 
-    return `License "${deletingLicense.value.code}" akan dihapus secara permanen.`;
+    return `Website "${deletingWebsite.value.domain}" akan dihapus secara permanen.`;
 });
 
-const filteredLicenses = computed(() => {
+const filteredWebsites = computed(() => {
     const query = search.value.trim().toLowerCase();
 
     if (query === '') {
-        return licenseData.value;
+        return websiteData.value;
     }
 
-    return licenseData.value.filter((license) => {
+    return websiteData.value.filter((website) => {
         const searchableContent = [
-            license.code,
-            license.user?.name,
-            license.user?.email,
-            license.user_id ? String(license.user_id) : null,
-            license.is_active ? 'active' : 'inactive',
+            website.domain,
+            website.ip_address,
+            website.license_key,
+            website.status,
+            website.theme_version,
+            website.plugin_version,
+            website.wp_version,
+            website.php_version,
         ]
             .filter(Boolean)
             .join(' ')
@@ -180,73 +203,57 @@ const filteredLicenses = computed(() => {
 
 const paginationSummary = computed(() => {
     if (!meta.value || meta.value.total === 0) {
-        return '0 licences';
+        return '0 websites';
     }
 
-    return `${meta.value.from}-${meta.value.to} of ${meta.value.total} licences`;
+    return `${meta.value.from}-${meta.value.to} of ${meta.value.total} websites`;
 });
 
-const fetchLicenses = async (page = 1): Promise<void> => {
+const fetchWebsites = async (page = 1): Promise<void> => {
     isLoading.value = true;
     errorMessage.value = null;
 
     try {
-        const response = await axios.get<LicensesResponse>('/api/licenses', {
+        const response = await axios.get<WebsitesResponse>('/api/websites', {
             params: { page },
         });
 
-        licenseData.value = response.data.data;
+        websiteData.value = response.data.data;
         meta.value = response.data.meta;
         currentPage.value = response.data.meta.current_page;
     } catch {
-        errorMessage.value = 'Data license gagal dimuat.';
+        errorMessage.value = 'Data website gagal dimuat.';
     } finally {
         isLoading.value = false;
     }
 };
 
-const formatDateTime = (value: string | null): string => {
+const formatDate = (value: string | null): string => {
     if (!value) {
         return '-';
     }
 
     return new Intl.DateTimeFormat('id-ID', {
         dateStyle: 'medium',
-        timeStyle: 'short',
     }).format(new Date(value));
 };
 
-const toDateTimeLocal = (value: string | null): string => {
-    if (!value) {
-        return '';
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-
-    const timezoneOffset = date.getTimezoneOffset() * 60_000;
-
-    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
-
-const validate = (formState: Partial<LicenseFormState>): FormError[] => {
+const validate = (formState: Partial<WebsiteFormState>): FormError[] => {
     const errors: FormError[] = [];
 
-    if (!formState.code?.trim()) {
-        errors.push({ name: 'code', message: 'Code wajib diisi.' });
+    if (!formState.domain?.trim()) {
+        errors.push({ name: 'domain', message: 'Domain wajib diisi.' });
     }
 
-    if (
-        formState.user_id &&
-        !Number.isInteger(Number(formState.user_id.trim()))
-    ) {
+    if (!formState.license_key?.trim()) {
         errors.push({
-            name: 'user_id',
-            message: 'User ID harus berupa angka.',
+            name: 'license_key',
+            message: 'License key wajib diisi.',
         });
+    }
+
+    if (formState.status && !['active', 'invalid'].includes(formState.status)) {
+        errors.push({ name: 'status', message: 'Status tidak valid.' });
     }
 
     return errors;
@@ -256,23 +263,16 @@ const fieldError = (name: string): string | undefined => {
     return serverErrors.value[name];
 };
 
-const generateCode = (): void => {
-    const characters = 'BCDFGHJKLMNPQRSTVWXYZ123456789bcdfghjklmnprstvwx';
-    const values = new Uint32Array(20);
-    window.crypto.getRandomValues(values);
-
-    state.code = Array.from(values, (value) => {
-        return characters[value % characters.length];
-    }).join('');
-};
-
 const resetForm = (): void => {
-    state.user_id = '';
-    state.code = '';
-    state.is_active = true;
-    state.used_at = '';
-    state.expires_at = '';
-    editingLicenseId.value = null;
+    state.domain = '';
+    state.ip_address = '';
+    state.license_key = '';
+    state.status = 'active';
+    state.theme_version = '';
+    state.plugin_version = '';
+    state.wp_version = '';
+    state.php_version = '';
+    editingWebsiteId.value = null;
     formMessage.value = null;
     serverErrors.value = {};
 };
@@ -282,13 +282,16 @@ const openCreateModal = (): void => {
     isModalOpen.value = true;
 };
 
-const openEditModal = (license: License): void => {
-    state.user_id = license.user_id ? String(license.user_id) : '';
-    state.code = license.code;
-    state.is_active = license.is_active;
-    state.used_at = toDateTimeLocal(license.used_at);
-    state.expires_at = toDateTimeLocal(license.expires_at);
-    editingLicenseId.value = license.id;
+const openEditModal = (website: Website): void => {
+    state.domain = website.domain;
+    state.ip_address = website.ip_address ?? '';
+    state.license_key = website.license_key;
+    state.status = website.status;
+    state.theme_version = website.theme_version ?? '';
+    state.plugin_version = website.plugin_version ?? '';
+    state.wp_version = website.wp_version ?? '';
+    state.php_version = website.php_version ?? '';
+    editingWebsiteId.value = website.id;
     formMessage.value = null;
     serverErrors.value = {};
     isModalOpen.value = true;
@@ -303,34 +306,43 @@ const closeModal = (): void => {
     resetForm();
 };
 
-const buildPayload = (): LicensePayload => ({
-    user_id: state.user_id.trim() === '' ? null : Number(state.user_id),
-    code: state.code,
-    is_active: state.is_active,
-    used_at: state.used_at || null,
-    expires_at: state.expires_at || null,
+const nullableTrimmed = (value: string): string | null => {
+    const trimmedValue = value.trim();
+
+    return trimmedValue === '' ? null : trimmedValue;
+};
+
+const buildPayload = (): WebsitePayload => ({
+    domain: state.domain.trim(),
+    ip_address: nullableTrimmed(state.ip_address),
+    license_key: state.license_key.trim(),
+    status: state.status,
+    theme_version: nullableTrimmed(state.theme_version),
+    plugin_version: nullableTrimmed(state.plugin_version),
+    wp_version: nullableTrimmed(state.wp_version),
+    php_version: nullableTrimmed(state.php_version),
 });
 
-const storeLicense = async (): Promise<License> => {
-    const response = await axios.post<ResourceResponse<License>>(
-        '/api/licenses',
+const storeWebsite = async (): Promise<Website> => {
+    const response = await axios.post<ResourceResponse<Website>>(
+        '/api/websites',
         buildPayload(),
     );
 
     return response.data.data;
 };
 
-const updateLicense = async (id: number): Promise<License> => {
-    const response = await axios.patch<ResourceResponse<License>>(
-        `/api/licenses/${id}`,
+const updateWebsite = async (id: number): Promise<Website> => {
+    const response = await axios.patch<ResourceResponse<Website>>(
+        `/api/websites/${id}`,
         buildPayload(),
     );
 
     return response.data.data;
 };
 
-const openDeleteModal = (license: License): void => {
-    deletingLicense.value = license;
+const openDeleteModal = (website: Website): void => {
+    deletingWebsite.value = website;
     deleteMessage.value = null;
     isDeleteModalOpen.value = true;
 };
@@ -341,12 +353,12 @@ const closeDeleteModal = (): void => {
     }
 
     isDeleteModalOpen.value = false;
-    deletingLicense.value = null;
+    deletingWebsite.value = null;
     deleteMessage.value = null;
 };
 
-const deleteLicense = async (): Promise<void> => {
-    if (!deletingLicense.value) {
+const deleteWebsite = async (): Promise<void> => {
+    if (!deletingWebsite.value) {
         return;
     }
 
@@ -354,23 +366,23 @@ const deleteLicense = async (): Promise<void> => {
     deleteMessage.value = null;
 
     try {
-        await axios.delete(`/api/licenses/${deletingLicense.value.id}`);
+        await axios.delete(`/api/websites/${deletingWebsite.value.id}`);
 
         const targetPage =
-            licenseData.value.length === 1 && currentPage.value > 1
+            websiteData.value.length === 1 && currentPage.value > 1
                 ? currentPage.value - 1
                 : currentPage.value;
 
         isDeleteModalOpen.value = false;
-        deletingLicense.value = null;
+        deletingWebsite.value = null;
 
         if (targetPage !== currentPage.value) {
             currentPage.value = targetPage;
         } else {
-            await fetchLicenses(targetPage);
+            await fetchWebsites(targetPage);
         }
     } catch {
-        deleteMessage.value = 'License gagal dihapus.';
+        deleteMessage.value = 'Website gagal dihapus.';
     } finally {
         isDeleting.value = false;
     }
@@ -378,7 +390,7 @@ const deleteLicense = async (): Promise<void> => {
 
 const handleValidationErrors = (error: unknown): void => {
     if (!(error instanceof AxiosError) || error.response?.status !== 422) {
-        formMessage.value = 'License gagal disimpan.';
+        formMessage.value = 'Website gagal disimpan.';
 
         return;
     }
@@ -394,23 +406,23 @@ const handleValidationErrors = (error: unknown): void => {
     );
 };
 
-const submitLicense = async (
-    _event: FormSubmitEvent<LicenseFormState>,
+const submitWebsite = async (
+    _event: FormSubmitEvent<WebsiteFormState>,
 ): Promise<void> => {
     isSaving.value = true;
     formMessage.value = null;
     serverErrors.value = {};
 
     try {
-        if (editingLicenseId.value) {
-            await updateLicense(editingLicenseId.value);
+        if (editingWebsiteId.value) {
+            await updateWebsite(editingWebsiteId.value);
         } else {
-            await storeLicense();
+            await storeWebsite();
         }
 
         isModalOpen.value = false;
         resetForm();
-        await fetchLicenses(currentPage.value);
+        await fetchWebsites(currentPage.value);
     } catch (error) {
         handleValidationErrors(error);
     } finally {
@@ -420,7 +432,7 @@ const submitLicense = async (
 
 watch(currentPage, (page) => {
     if (page !== meta.value?.current_page) {
-        void fetchLicenses(page);
+        void fetchWebsites(page);
     }
 });
 
@@ -432,18 +444,18 @@ watch(isModalOpen, (open) => {
 
 watch(isDeleteModalOpen, (open) => {
     if (!open && !isDeleting.value) {
-        deletingLicense.value = null;
+        deletingWebsite.value = null;
         deleteMessage.value = null;
     }
 });
 
 onMounted(() => {
-    void fetchLicenses();
+    void fetchWebsites();
 });
 </script>
 
 <template>
-    <Head title="Licences" />
+    <Head title="Websites" />
 
     <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto p-4">
         <div
@@ -451,7 +463,7 @@ onMounted(() => {
         >
             <div>
                 <h1 class="text-2xl font-semibold text-highlighted">
-                    Licences
+                    Websites
                 </h1>
                 <p class="text-sm text-muted">
                     {{ paginationSummary }}
@@ -462,7 +474,7 @@ onMounted(() => {
                 <UInput
                     v-model="search"
                     icon="i-lucide-search"
-                    placeholder="Search licences..."
+                    placeholder="Search websites..."
                     :disabled="isLoading"
                     class="w-full sm:w-64"
                 />
@@ -479,8 +491,8 @@ onMounted(() => {
                     color="neutral"
                     variant="outline"
                     :loading="isLoading"
-                    aria-label="Refresh licences"
-                    @click="fetchLicenses(currentPage)"
+                    aria-label="Refresh websites"
+                    @click="fetchWebsites(currentPage)"
                 />
             </div>
         </div>
@@ -490,7 +502,7 @@ onMounted(() => {
             color="error"
             variant="soft"
             icon="i-lucide-circle-alert"
-            title="Gagal memuat license"
+            title="Gagal memuat website"
             :description="errorMessage"
             :actions="[
                 {
@@ -498,7 +510,7 @@ onMounted(() => {
                     icon: 'i-lucide-refresh-cw',
                     color: 'error',
                     variant: 'subtle',
-                    onClick: () => fetchLicenses(currentPage),
+                    onClick: () => fetchWebsites(currentPage),
                 },
             ]"
         />
@@ -507,22 +519,22 @@ onMounted(() => {
             class="overflow-hidden rounded-lg border border-default bg-default"
         >
             <UTable
-                :data="filteredLicenses"
+                :data="filteredWebsites"
                 :columns="columns"
                 :loading="isLoading"
                 sticky
             >
-                <template #code-cell="{ row }">
+                <template #domain-cell="{ row }">
                     <div class="flex items-center gap-3">
                         <UAvatar
-                            :alt="row.original.code"
-                            icon="i-lucide-key-round"
+                            :alt="row.original.domain"
+                            icon="i-lucide-globe"
                             size="lg"
                         />
 
                         <div class="min-w-0">
                             <p class="truncate font-medium text-highlighted">
-                                {{ row.original.code }}
+                                {{ row.original.domain }}
                             </p>
                             <p class="text-xs text-muted">
                                 ID {{ row.original.id }}
@@ -531,38 +543,56 @@ onMounted(() => {
                     </div>
                 </template>
 
-                <template #user-cell="{ row }">
-                    <div v-if="row.original.user" class="min-w-0">
-                        <p
-                            class="truncate text-sm font-medium text-highlighted"
-                        >
-                            {{ row.original.user.name }}
-                        </p>
-                        <p class="truncate text-xs text-muted">
-                            {{ row.original.user.email }}
-                        </p>
-                    </div>
-                    <span v-else class="text-sm text-muted">Unassigned</span>
-                </template>
-
-                <template #is_active-cell="{ row }">
+                <template #status-cell="{ row }">
                     <UBadge
-                        :color="row.original.is_active ? 'success' : 'neutral'"
+                        :color="
+                            row.original.status === 'active'
+                                ? 'success'
+                                : 'error'
+                        "
                         variant="subtle"
-                        :label="row.original.is_active ? 'Active' : 'Inactive'"
+                        :label="
+                            row.original.status === 'active'
+                                ? 'Active'
+                                : 'Invalid'
+                        "
                     />
                 </template>
 
-                <template #used_at-cell="{ row }">
-                    {{ formatDateTime(row.original.used_at) }}
+                <template #license_key-cell="{ row }">
+                    <UBadge
+                        color="neutral"
+                        variant="subtle"
+                        :label="row.original.license_key"
+                    />
                 </template>
 
-                <template #expires_at-cell="{ row }">
-                    {{ formatDateTime(row.original.expires_at) }}
+                <template #ip_address-cell="{ row }">
+                    <span class="text-sm text-muted">
+                        {{ row.original.ip_address || '-' }}
+                    </span>
+                </template>
+
+                <template #plugin_version-cell="{ row }">
+                    <span class="text-sm">
+                        {{ row.original.plugin_version || '-' }}
+                    </span>
+                </template>
+
+                <template #wp_version-cell="{ row }">
+                    <span class="text-sm">
+                        {{ row.original.wp_version || '-' }}
+                    </span>
+                </template>
+
+                <template #php_version-cell="{ row }">
+                    <span class="text-sm">
+                        {{ row.original.php_version || '-' }}
+                    </span>
                 </template>
 
                 <template #created_at-cell="{ row }">
-                    {{ formatDateTime(row.original.created_at) }}
+                    {{ formatDate(row.original.created_at) }}
                 </template>
 
                 <template #actions-cell="{ row }">
@@ -571,7 +601,7 @@ onMounted(() => {
                             icon="i-lucide-pencil"
                             color="neutral"
                             variant="ghost"
-                            aria-label="Edit license"
+                            aria-label="Edit website"
                             :disabled="isLoading || isDeleting"
                             @click="openEditModal(row.original)"
                         />
@@ -580,7 +610,7 @@ onMounted(() => {
                             icon="i-lucide-trash"
                             color="error"
                             variant="ghost"
-                            aria-label="Delete license"
+                            aria-label="Delete website"
                             :disabled="isLoading || isDeleting"
                             @click="openDeleteModal(row.original)"
                         />
@@ -594,7 +624,7 @@ onMounted(() => {
                             class="size-8 text-muted"
                         />
                         <p class="font-medium text-highlighted">
-                            Tidak ada license
+                            Tidak ada website
                         </p>
                         <p class="text-sm text-muted">
                             Data belum tersedia atau tidak cocok dengan
@@ -639,89 +669,124 @@ onMounted(() => {
                 />
 
                 <UForm
-                    id="license-form"
+                    id="website-form"
                     :state="state"
                     :validate="validate"
                     class="space-y-4"
-                    @submit="submitLicense"
+                    @submit="submitWebsite"
                 >
                     <UFormField
-                        name="code"
-                        label="Code"
+                        name="domain"
+                        label="Domain"
                         required
-                        :error="fieldError('code')"
-                    >
-                        <div class="flex gap-2">
-                            <UInput
-                                v-model="state.code"
-                                placeholder="A1B2C3D4E5F6"
-                                :disabled="isSaving"
-                                class="min-w-0 flex-1"
-                            />
-
-                            <UButton
-                                type="button"
-                                icon="i-lucide-sparkles"
-                                label="Generate"
-                                color="neutral"
-                                variant="outline"
-                                :disabled="isSaving"
-                                @click="generateCode"
-                            />
-                        </div>
-                    </UFormField>
-
-                    <UFormField
-                        name="user_id"
-                        label="User ID"
-                        hint="Optional"
-                        :error="fieldError('user_id')"
+                        :error="fieldError('domain')"
                     >
                         <UInput
-                            v-model="state.user_id"
-                            type="number"
-                            min="1"
-                            placeholder="Leave empty if unassigned"
+                            v-model="state.domain"
+                            placeholder="example.com"
                             :disabled="isSaving"
                             class="w-full"
                         />
                     </UFormField>
 
                     <UFormField
-                        name="is_active"
-                        label="Active"
-                        :error="fieldError('is_active')"
+                        name="license_key"
+                        label="License Key"
+                        required
+                        :error="fieldError('license_key')"
                     >
-                        <USwitch
-                            v-model="state.is_active"
+                        <UInput
+                            v-model="state.license_key"
+                            placeholder="APICO-2026-0001"
                             :disabled="isSaving"
+                            class="w-full"
                         />
                     </UFormField>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <UFormField
-                            name="used_at"
-                            label="Used At"
-                            hint="Optional"
-                            :error="fieldError('used_at')"
+                            name="status"
+                            label="Status"
+                            required
+                            :error="fieldError('status')"
                         >
-                            <UInput
-                                v-model="state.used_at"
-                                type="datetime-local"
+                            <USelect
+                                v-model="state.status"
+                                :items="statusOptions"
                                 :disabled="isSaving"
                                 class="w-full"
                             />
                         </UFormField>
 
                         <UFormField
-                            name="expires_at"
-                            label="Expires At"
+                            name="ip_address"
+                            label="IP Address"
                             hint="Optional"
-                            :error="fieldError('expires_at')"
+                            :error="fieldError('ip_address')"
                         >
                             <UInput
-                                v-model="state.expires_at"
-                                type="datetime-local"
+                                v-model="state.ip_address"
+                                placeholder="192.168.10.10"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <UFormField
+                            name="theme_version"
+                            label="Theme Version"
+                            hint="Optional"
+                            :error="fieldError('theme_version')"
+                        >
+                            <UInput
+                                v-model="state.theme_version"
+                                placeholder="1.0.0"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+
+                        <UFormField
+                            name="plugin_version"
+                            label="Plugin Version"
+                            hint="Optional"
+                            :error="fieldError('plugin_version')"
+                        >
+                            <UInput
+                                v-model="state.plugin_version"
+                                placeholder="1.0.0"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <UFormField
+                            name="wp_version"
+                            label="WordPress Version"
+                            hint="Optional"
+                            :error="fieldError('wp_version')"
+                        >
+                            <UInput
+                                v-model="state.wp_version"
+                                placeholder="6.5.4"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+
+                        <UFormField
+                            name="php_version"
+                            label="PHP Version"
+                            hint="Optional"
+                            :error="fieldError('php_version')"
+                        >
+                            <UInput
+                                v-model="state.php_version"
+                                placeholder="8.3"
                                 :disabled="isSaving"
                                 class="w-full"
                             />
@@ -741,7 +806,7 @@ onMounted(() => {
 
                 <UButton
                     type="submit"
-                    form="license-form"
+                    form="website-form"
                     icon="i-lucide-save"
                     :label="submitLabel"
                     :loading="isSaving"
@@ -751,7 +816,7 @@ onMounted(() => {
 
         <UModal
             v-model:open="isDeleteModalOpen"
-            title="Delete License"
+            title="Delete Website"
             :description="deleteModalDescription"
             :ui="{ footer: 'justify-end' }"
         >
@@ -780,7 +845,7 @@ onMounted(() => {
                     icon="i-lucide-trash"
                     color="error"
                     :loading="isDeleting"
-                    @click="deleteLicense"
+                    @click="deleteWebsite"
                 />
             </template>
         </UModal>
