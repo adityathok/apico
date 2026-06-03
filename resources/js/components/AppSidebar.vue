@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { FileText, FolderGit2, LayoutGrid, BookOpen, Folder, Tag } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -14,7 +13,8 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, posts, categories, tags } from '@/routes';
+import { dashboard, posts, categories, tags, licences } from '@/routes';
+import { FileText, FolderGit2, LayoutGrid, BookOpen, Folder, Tag, Key } from 'lucide-vue-next';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -37,6 +37,11 @@ const mainNavItems: NavItem[] = [
         title: 'Tags',
         href: tags(),
         icon: Tag,
+    },
+    {
+        title: 'Licences',
+        href: licences(),
+        icon: Key,
     },
 ];
 
