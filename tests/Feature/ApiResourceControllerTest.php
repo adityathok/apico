@@ -5,6 +5,7 @@ use App\Models\License;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\Website;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -150,4 +151,35 @@ test('license controller stores updates and deletes a license', function () {
 
     $this->deleteJson("/api/licenses/{$license->id}")->assertNoContent();
     $this->assertDatabaseMissing('licenses', ['id' => $license->id]);
+});
+
+test('website controller stores updates and deletes a website', function () {
+    $response = $this->postJson('/api/websites', [
+        'domain' => 'example.test',
+        'ip_address' => '192.168.1.10',
+        'license_key' => 'APICO-WEBSITE-0001',
+        'status' => 'active',
+        'theme_version' => '1.2.3',
+        'plugin_version' => '4.5.6',
+        'wp_version' => '6.5.4',
+        'php_version' => '8.3',
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.domain', 'example.test')
+        ->assertJsonPath('data.status', 'active')
+        ->assertJsonPath('data.license_key', 'APICO-WEBSITE-0001');
+
+    $website = Website::where('domain', 'example.test')->firstOrFail();
+
+    $this->patchJson("/api/websites/{$website->id}", [
+        'status' => 'invalid',
+        'plugin_version' => '4.5.7',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'invalid')
+        ->assertJsonPath('data.plugin_version', '4.5.7');
+
+    $this->deleteJson("/api/websites/{$website->id}")->assertNoContent();
+    $this->assertDatabaseMissing('websites', ['id' => $website->id]);
 });
