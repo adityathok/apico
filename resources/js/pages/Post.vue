@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
-import type { FormError } from '@nuxt/ui';
+import type { EditorToolbarItem, FormError } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { post, posts } from '@/routes';
@@ -104,6 +104,106 @@ const submitLabel = computed(() =>
 );
 
 const categoryItems = computed(() => categories.value);
+const editorToolbarItems: EditorToolbarItem[][] = [
+    [
+        {
+            kind: 'heading',
+            level: 2,
+            icon: 'i-lucide-heading-2',
+            tooltip: { text: 'Heading' },
+            'aria-label': 'Heading',
+        },
+        {
+            kind: 'paragraph',
+            icon: 'i-lucide-pilcrow',
+            tooltip: { text: 'Paragraph' },
+            'aria-label': 'Paragraph',
+        },
+    ],
+    [
+        {
+            kind: 'mark',
+            mark: 'bold',
+            icon: 'i-lucide-bold',
+            tooltip: { text: 'Bold' },
+            'aria-label': 'Bold',
+        },
+        {
+            kind: 'mark',
+            mark: 'italic',
+            icon: 'i-lucide-italic',
+            tooltip: { text: 'Italic' },
+            'aria-label': 'Italic',
+        },
+        {
+            kind: 'mark',
+            mark: 'strike',
+            icon: 'i-lucide-strikethrough',
+            tooltip: { text: 'Strike' },
+            'aria-label': 'Strike',
+        },
+    ],
+    [
+        {
+            kind: 'bulletList',
+            icon: 'i-lucide-list',
+            tooltip: { text: 'Bullet list' },
+            'aria-label': 'Bullet list',
+        },
+        {
+            kind: 'orderedList',
+            icon: 'i-lucide-list-ordered',
+            tooltip: { text: 'Numbered list' },
+            'aria-label': 'Numbered list',
+        },
+        {
+            kind: 'blockquote',
+            icon: 'i-lucide-quote',
+            tooltip: { text: 'Quote' },
+            'aria-label': 'Quote',
+        },
+    ],
+    [
+        {
+            kind: 'link',
+            icon: 'i-lucide-link',
+            tooltip: { text: 'Link' },
+            'aria-label': 'Link',
+        },
+        {
+            kind: 'image',
+            icon: 'i-lucide-image',
+            tooltip: { text: 'Image URL' },
+            'aria-label': 'Image URL',
+        },
+        {
+            kind: 'horizontalRule',
+            icon: 'i-lucide-minus',
+            tooltip: { text: 'Horizontal line' },
+            'aria-label': 'Horizontal line',
+        },
+    ],
+    [
+        {
+            kind: 'undo',
+            icon: 'i-lucide-undo-2',
+            tooltip: { text: 'Undo' },
+            'aria-label': 'Undo',
+        },
+        {
+            kind: 'redo',
+            icon: 'i-lucide-redo-2',
+            tooltip: { text: 'Redo' },
+            'aria-label': 'Redo',
+        },
+        {
+            kind: 'clearFormatting',
+            icon: 'i-lucide-eraser',
+            tooltip: { text: 'Clear formatting' },
+            'aria-label': 'Clear formatting',
+        },
+    ],
+];
 
 const imagePreview = computed(() => {
     if (image.value) {
@@ -570,14 +670,22 @@ onMounted(async () => {
                     required
                     :error="fieldError('content')"
                 >
-                    <UTextarea
+                    <UEditor
+                        v-slot="{ editor }"
                         v-model="state.content"
-                        placeholder="Write post content"
-                        :rows="12"
-                        autoresize
+                        content-type="html"
                         :disabled="isSaving"
-                        class="w-full"
-                    />
+                        class="min-h-96 w-full rounded-md border border-default bg-default"
+                    >
+                        <UEditorToolbar
+                            :editor="editor"
+                            :items="editorToolbarItems"
+                            class="border-b border-default p-2"
+                        />
+                        <UEditorSuggestionMenu :editor="editor" />
+                        <UEditorEmojiMenu :editor="editor" />
+                        <UEditorDragHandle :editor="editor" />
+                    </UEditor>
                 </UFormField>
             </div>
 
