@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
-import type { FormError, FormSubmitEvent } from '@nuxt/ui';
+import type { FormError } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { post, posts } from '@/routes';
@@ -37,6 +37,10 @@ type SelectOption = {
     value: number;
 };
 
+type TagOption = SelectOption & {
+    slug: string;
+};
+
 type PostFormState = {
     title: string;
     slug: string;
@@ -45,6 +49,7 @@ type PostFormState = {
     published_at: string;
     category_ids: number[];
     tag_ids: number[];
+    tag_names: string;
 };
 
 type ValidationResponse = {
@@ -78,10 +83,11 @@ const state = reactive<PostFormState>({
     published_at: '',
     category_ids: [],
     tag_ids: [],
+    tag_names: '',
 });
 
 const categories = ref<SelectOption[]>([]);
-const tags = ref<SelectOption[]>([]);
+const tags = ref<TagOption[]>([]);
 const image = ref<File | null>(null);
 const currentImage = ref<string | null>(null);
 const postId = ref<number | null>(null);
@@ -98,7 +104,6 @@ const submitLabel = computed(() =>
 );
 
 const categoryItems = computed(() => categories.value);
-const tagItems = computed(() => tags.value);
 
 const imagePreview = computed(() => {
     if (image.value) {
@@ -122,6 +127,24 @@ const slugify = (value: string): string => {
         .trim()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
+};
+
+const parseTagNames = (value: string): string[] => {
+    const names = value
+        .split(',')
+        .map((tagName) => tagName.trim())
+        .filter((tagName) => tagName !== '');
+    const uniqueNames = new Map<string, string>();
+
+    names.forEach((tagName) => {
+        const slug = slugify(tagName);
+
+        if (slug && !uniqueNames.has(slug)) {
+            uniqueNames.set(slug, tagName);
+        }
+    });
+
+    return Array.from(uniqueNames.values());
 };
 
 const formatDateTimeLocal = (value: string | null): string => {
@@ -170,6 +193,7 @@ const resetForm = (): void => {
     state.published_at = '';
     state.category_ids = [];
     state.tag_ids = [];
+    state.tag_names = '';
     image.value = null;
     currentImage.value = null;
     postId.value = null;
@@ -186,6 +210,7 @@ const fillForm = (postData: Post): void => {
         (category) => category.id,
     );
     state.tag_ids = (postData.tags ?? []).map((tag) => tag.id);
+    state.tag_names = (postData.tags ?? []).map((tag) => tag.name).join(', ');
     currentImage.value = postData.image;
     postId.value = postData.id;
     isEdit.value = true;
@@ -205,7 +230,47 @@ const fetchTaxonomies = async (): Promise<void> => {
     tags.value = tagResponse.data.data.map((tag) => ({
         label: tag.name,
         value: tag.id,
+        slug: tag.slug,
     }));
+};
+
+const resolveTagIds = async (): Promise<void> => {
+    const tagNames = parseTagNames(state.tag_names);
+    const tagIds: number[] = [];
+
+    for (const tagName of tagNames) {
+        const slug = slugify(tagName);
+        const existingTag = tags.value.find(
+            (tag) =>
+                tag.slug === slug ||
+                tag.label.toLowerCase() === tagName.toLowerCase(),
+        );
+
+        if (existingTag) {
+            tagIds.push(existingTag.value);
+
+            continue;
+        }
+
+        const response = await axios.post<ResourceResponse<Taxonomy>>(
+            '/api/tags',
+            {
+                name: tagName,
+                slug,
+            },
+        );
+        const tag = response.data.data;
+
+        tags.value.unshift({
+            label: tag.name,
+            value: tag.id,
+            slug: tag.slug,
+        });
+        tagIds.push(tag.id);
+    }
+
+    state.tag_ids = tagIds;
+    state.tag_names = tagNames.join(', ');
 };
 
 const fetchPost = async (id: number): Promise<void> => {
@@ -329,9 +394,7 @@ const handleValidationErrors = (error: unknown): void => {
     );
 };
 
-const submit = async (
-    _event: FormSubmitEvent<PostFormState>,
-): Promise<void> => {
+const submit = async (): Promise<void> => {
     isSaving.value = true;
     loadError.value = null;
     statusMessage.value = null;
@@ -339,6 +402,8 @@ const submit = async (
 
     try {
         const editingPostId = isEdit.value ? postId.value : null;
+        await resolveTagIds();
+
         const savedPost = editingPostId
             ? await updatePost(editingPostId)
             : await storePost();
@@ -574,17 +639,14 @@ onMounted(async () => {
                 </UFormField>
 
                 <UFormField
-                    name="tag_ids"
+                    name="tag_names"
                     label="Tags"
                     hint="Optional"
-                    :error="fieldError('tag_ids')"
+                    :error="fieldError('tag_ids') ?? fieldError('tag_names')"
                 >
-                    <USelectMenu
-                        v-model="state.tag_ids"
-                        :items="tagItems"
-                        value-key="value"
-                        multiple
-                        placeholder="Choose tags"
+                    <UTextarea
+                        v-model="state.tag_names"
+                        placeholder="laravel, api, tutorial"
                         :disabled="isSaving"
                         class="w-full"
                     />
