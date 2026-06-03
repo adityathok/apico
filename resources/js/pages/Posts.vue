@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import type { TableColumn } from '@nuxt/ui';
 import axios from 'axios';
 import { computed, onMounted, ref, watch } from 'vue';
-import { posts } from '@/routes';
+import { post, posts } from '@/routes';
 
 type User = {
     id: number;
@@ -87,6 +87,10 @@ const columns: TableColumn<Post>[] = [
         accessorKey: 'created_at',
         header: 'Created',
     },
+    {
+        id: 'actions',
+        header: '',
+    },
 ];
 
 const postsData = ref<Post[]>([]);
@@ -94,6 +98,7 @@ const meta = ref<PaginationMeta | null>(null);
 const search = ref('');
 const currentPage = ref(1);
 const isLoading = ref(true);
+const deletingPostId = ref<number | null>(null);
 const errorMessage = ref<string | null>(null);
 
 const filteredPosts = computed(() => {
@@ -167,6 +172,36 @@ const imageUrl = (path: string | null): string | undefined => {
     }
 
     return `/storage/${path}`;
+};
+
+const editUrl = (id: number): string => {
+    return post.url({ query: { id } });
+};
+
+const deletePost = async (postToDelete: Post): Promise<void> => {
+    const shouldDelete = window.confirm(`Hapus post "${postToDelete.title}"?`);
+
+    if (!shouldDelete) {
+        return;
+    }
+
+    deletingPostId.value = postToDelete.id;
+    errorMessage.value = null;
+
+    try {
+        await axios.delete(`/api/posts/${postToDelete.id}`);
+
+        const nextPage =
+            postsData.value.length === 1 && currentPage.value > 1
+                ? currentPage.value - 1
+                : currentPage.value;
+
+        await fetchPosts(nextPage);
+    } catch {
+        errorMessage.value = 'Post gagal dihapus.';
+    } finally {
+        deletingPostId.value = null;
+    }
 };
 
 watch(currentPage, (page) => {
@@ -254,7 +289,7 @@ onMounted(() => {
                             <p class="truncate font-medium text-highlighted">
                                 {{ row.original.title }}
                             </p>
-                            <p class="truncate text-xs text-muted max-w-25">
+                            <p class="max-w-25 truncate text-xs text-muted">
                                 {{ row.original.excerpt || row.original.slug }}
                             </p>
                         </div>
@@ -304,6 +339,27 @@ onMounted(() => {
 
                 <template #created_at-cell="{ row }">
                     {{ formatDate(row.original.created_at) }}
+                </template>
+
+                <template #actions-cell="{ row }">
+                    <div class="flex justify-end gap-1">
+                        <UButton
+                            :to="editUrl(row.original.id)"
+                            icon="i-lucide-pencil"
+                            color="neutral"
+                            variant="ghost"
+                            aria-label="Edit post"
+                        />
+
+                        <UButton
+                            icon="i-lucide-trash-2"
+                            color="error"
+                            variant="ghost"
+                            :loading="deletingPostId === row.original.id"
+                            aria-label="Delete post"
+                            @click="deletePost(row.original)"
+                        />
+                    </div>
                 </template>
 
                 <template #empty>

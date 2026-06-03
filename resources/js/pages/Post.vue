@@ -465,6 +465,7 @@ onMounted(async () => {
                         v-model="state.title"
                         placeholder="Post title"
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
@@ -478,6 +479,7 @@ onMounted(async () => {
                         v-model="state.slug"
                         placeholder="post-slug"
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
@@ -493,6 +495,7 @@ onMounted(async () => {
                         :rows="3"
                         autoresize
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
@@ -508,6 +511,7 @@ onMounted(async () => {
                         :rows="12"
                         autoresize
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
             </div>
@@ -548,6 +552,7 @@ onMounted(async () => {
                         v-model="state.published_at"
                         type="datetime-local"
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
@@ -564,6 +569,7 @@ onMounted(async () => {
                         multiple
                         placeholder="Choose categories"
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
@@ -580,6 +586,7 @@ onMounted(async () => {
                         multiple
                         placeholder="Choose tags"
                         :disabled="isSaving"
+                        class="w-full"
                     />
                 </UFormField>
 
