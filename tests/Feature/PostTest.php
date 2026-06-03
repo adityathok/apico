@@ -4,6 +4,7 @@ use App\Models\Post;
 use App\Models\User;
 use Database\Seeders\PostSeeder;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 test('posts table has the expected columns', function () {
     expect(Schema::hasColumns('posts', [
@@ -46,6 +47,8 @@ test('image path is mass assignable', function () {
 });
 
 test('post seeder creates posts for seeded users once', function () {
+    Storage::fake('public');
+
     $admin = User::factory()->create(['email' => 'admin@example.com']);
     $testUser = User::factory()->create(['email' => 'test@example.com']);
 
@@ -56,6 +59,10 @@ test('post seeder creates posts for seeded users once', function () {
         ->and($testUser->posts()->count())->toBe(5)
         ->and(Post::count())->toBe(10)
         ->and(Post::query()->pluck('image')->every(
-            fn (?string $image): bool => is_string($image) && str_starts_with($image, 'https://images.unsplash.com/'),
+            fn (?string $image): bool => is_string($image) && str_starts_with($image, 'post/'.now()->format('y-m').'/'),
         ))->toBeTrue();
+
+    Post::query()
+        ->pluck('image')
+        ->each(fn (string $image): mixed => Storage::disk('public')->assertExists($image));
 });

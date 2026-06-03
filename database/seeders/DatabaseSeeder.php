@@ -22,16 +22,16 @@ class DatabaseSeeder extends Seeder
             User::factory()->create([
                 'name' => 'Admin',
                 'email' => 'admin@example.com',
-                'password' => bcrypt('password'),
+                'password' => bcrypt('123456789'),
             ]);
         }
 
         // jika tidak ada user test, maka buat user test
-        if (User::where('email', 'test@example.com')->count() == 0) {
+        if (User::where('email', 'usertest@example.com')->count() == 0) {
             User::factory()->create([
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-                'password' => bcrypt('password'),
+                'name' => 'User Test',
+                'email' => 'usertest@example.com',
+                'password' => bcrypt('123456789'),
             ]);
         }
 
