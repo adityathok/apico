@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import type { TableColumn } from '@nuxt/ui';
 import axios from 'axios';
 import { computed, onMounted, ref, watch } from 'vue';
-import { post, posts } from '@/routes';
+import { post, posts, read } from '@/routes';
 
 type User = {
     id: number;
@@ -180,6 +180,10 @@ const editUrl = (id: number): string => {
     return post.url({ query: { id } });
 };
 
+const previewUrl = (slug: string): string => {
+    return read(slug).url;
+};
+
 const deletePost = async (postToDelete: Post): Promise<void> => {
     const shouldDelete = window.confirm(`Hapus post "${postToDelete.title}"?`);
 
@@ -232,6 +236,12 @@ onMounted(() => {
             </div>
 
             <div class="flex items-center gap-2">
+                <UButton
+                    :to="post()"
+                    icon="i-lucide-plus"
+                    label="Add"
+                />
+
                 <UInput
                     v-model="search"
                     icon="i-lucide-search"
@@ -345,6 +355,16 @@ onMounted(() => {
 
                 <template #actions-cell="{ row }">
                     <div class="flex justify-end gap-1">
+                        <UButton
+                            :href="previewUrl(row.original.slug)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            icon="i-lucide-eye"
+                            color="neutral"
+                            variant="ghost"
+                            aria-label="Preview post"
+                        />
+
                         <UButton
                             :to="editUrl(row.original.id)"
                             icon="i-lucide-pencil"
