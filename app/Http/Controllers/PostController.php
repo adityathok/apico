@@ -10,6 +10,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class PostController extends Controller
 {
@@ -63,6 +64,28 @@ class PostController extends Controller
     public function show(Post $post): PostResource
     {
         return PostResource::make($post->load(['user:id,name,email', 'categories:id,name,slug', 'tags:id,name,slug']));
+    }
+
+    /**
+     * Display a public post page by slug.
+     */
+    public function read(string $slug): View
+    {
+        $post = Post::query()
+            ->with(['user:id,name,email', 'categories:id,name,slug', 'tags:id,name,slug'])
+            ->where('slug', $slug)
+            ->firstOrFail();
+
+        $imageUrl = match (true) {
+            $post->image === null => null,
+            str_starts_with($post->image, 'http') => $post->image,
+            default => Storage::disk('public')->url($post->image),
+        };
+
+        return view('posts.read', [
+            'post' => $post,
+            'imageUrl' => $imageUrl,
+        ]);
     }
 
     /**

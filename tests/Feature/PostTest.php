@@ -50,6 +50,30 @@ test('image fields are mass assignable', function () {
         ->and($post->image_caption)->toBe('Example image caption.');
 });
 
+test('read route renders a post blade page by slug', function () {
+    $post = Post::factory()->create([
+        'title' => 'Public Read Page',
+        'slug' => 'public-read-page',
+        'image' => null,
+        'image_caption' => 'Readable image caption.',
+        'excerpt' => 'Readable post excerpt.',
+        'content' => '<p>Readable post content.</p>',
+        'published_at' => now(),
+    ]);
+
+    $this->get(route('read', $post->slug))
+        ->assertOk()
+        ->assertViewIs('posts.read')
+        ->assertViewHas('post', $post)
+        ->assertSee('Public Read Page')
+        ->assertSee('Readable post excerpt.')
+        ->assertSee('Readable post content.', false);
+});
+
+test('read route returns not found for an unknown slug', function () {
+    $this->get(route('read', 'missing-post'))->assertNotFound();
+});
+
 test('post seeder creates posts for seeded users once', function () {
     Http::fake([
         'picsum.photos/*' => Http::response('fake picsum image', 200, [
