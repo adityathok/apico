@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { dashboard } from '@/routes';
 import { store } from '@/routes/login';
 import { Form, Head, Link } from '@inertiajs/vue3';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
@@ -19,7 +20,8 @@ import { Form, Head, Link } from '@inertiajs/vue3';
     >
         <section class="w-full max-w-md">
             <div class="mb-8 text-center">
-                <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                <AppLogoIcon class="size-15 mx-auto fill-current text-red-500" />
+                <p class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-2">
                     Welcome back
                 </p>
                 <h1 class="mt-2 text-3xl font-semibold tracking-normal">
