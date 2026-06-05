@@ -5,8 +5,8 @@ declare(strict_types=1);
 session_start();
 
 $basePath = dirname(__DIR__);
-$artisanPath = $basePath . DIRECTORY_SEPARATOR . 'artisan';
-$envPath = $basePath . DIRECTORY_SEPARATOR . '.env';
+$artisanPath = $basePath.DIRECTORY_SEPARATOR.'artisan';
+$envPath = $basePath.DIRECTORY_SEPARATOR.'.env';
 
 if (empty($_SESSION['admintool_csrf'])) {
     $_SESSION['admintool_csrf'] = bin2hex(random_bytes(32));
@@ -86,7 +86,79 @@ function admintoolRunArtisan(string $phpBinary, string $artisanPath, array $argu
 
     return [
         'exit_code' => $exitCode,
-        'output' => trim((string) $output . PHP_EOL . (string) $errorOutput),
+        'output' => trim((string) $output.PHP_EOL.(string) $errorOutput),
+    ];
+}
+
+/**
+ * @return array{exit_code: int, output: string}
+ */
+function admintoolCopyPublicToPublicHtml(string $sourcePath, string $targetPath): array
+{
+    if (! is_dir($sourcePath)) {
+        return [
+            'exit_code' => 1,
+            'output' => 'Folder public tidak ditemukan.',
+        ];
+    }
+
+    if (! is_dir($targetPath) && ! mkdir($targetPath, 0755, true)) {
+        return [
+            'exit_code' => 1,
+            'output' => 'Gagal membuat folder public_html.',
+        ];
+    }
+
+    $copied = 0;
+    $failed = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($sourcePath, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+
+    foreach ($iterator as $item) {
+        $relativePath = substr($item->getPathname(), strlen($sourcePath) + 1);
+        $destinationPath = $targetPath.DIRECTORY_SEPARATOR.$relativePath;
+
+        if ($item->isDir()) {
+            if (! is_dir($destinationPath) && ! mkdir($destinationPath, 0755, true)) {
+                $failed[] = $relativePath;
+            }
+
+            continue;
+        }
+
+        $destinationDirectory = dirname($destinationPath);
+
+        if (! is_dir($destinationDirectory) && ! mkdir($destinationDirectory, 0755, true)) {
+            $failed[] = $relativePath;
+
+            continue;
+        }
+
+        if (copy($item->getPathname(), $destinationPath)) {
+            $copied++;
+
+            continue;
+        }
+
+        $failed[] = $relativePath;
+    }
+
+    $output = [
+        'Source: '.$sourcePath,
+        'Target: '.$targetPath,
+        'File copied: '.$copied,
+    ];
+
+    if ($failed !== []) {
+        $output[] = 'Failed:';
+        $output = array_merge($output, $failed);
+    }
+
+    return [
+        'exit_code' => $failed === [] ? 0 : 1,
+        'output' => implode(PHP_EOL, $output),
     ];
 }
 
@@ -97,11 +169,11 @@ function admintoolEscape(string $value): string
 
 $env = admintoolReadEnv($envPath);
 $password = $env['ADMINTOOL_PASSWORD'] ?? $env['ADMINS_TOOL_PASSWORD'] ?? $env['APP_KEY'] ?? '123456789';
-$sessionKey = hash('sha256', $basePath . '|admintool');
+$sessionKey = hash('sha256', $basePath.'|admintool');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
     unset($_SESSION[$sessionKey]);
-    header('Location: ' . strtok((string) $_SERVER['REQUEST_URI'], '?'));
+    header('Location: '.strtok((string) $_SERVER['REQUEST_URI'], '?'));
     exit;
 }
 
@@ -110,7 +182,7 @@ $loginError = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
     if ($password !== '' && hash_equals($password, (string) $_POST['password'])) {
         $_SESSION[$sessionKey] = true;
-        header('Location: ' . strtok((string) $_SERVER['REQUEST_URI'], '?'));
+        header('Location: '.strtok((string) $_SERVER['REQUEST_URI'], '?'));
         exit;
     }
 
@@ -180,6 +252,12 @@ $commands = [
         'arguments' => ['queue:restart', '--no-interaction'],
         'danger' => false,
     ],
+    'copy_public_html' => [
+        'label' => 'Copy Public',
+        'description' => 'Copy isi folder public ke public_html sejajar folder Laravel.',
+        'handler' => 'copy_public_html',
+        'danger' => false,
+    ],
 ];
 
 $result = null;
@@ -199,6 +277,11 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
             'exit_code' => 1,
             'output' => 'Command tidak tersedia.',
         ];
+    } elseif (($commands[$selectedCommand]['handler'] ?? null) === 'copy_public_html') {
+        $result = admintoolCopyPublicToPublicHtml(
+            $basePath.DIRECTORY_SEPARATOR.'public',
+            dirname($basePath).DIRECTORY_SEPARATOR.'public_html'
+        );
     } elseif (! is_file($artisanPath)) {
         $result = [
             'exit_code' => 1,
