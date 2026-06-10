@@ -20,7 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('admin/tags', 'Tags')->name('tags');
     Route::inertia('admin/licenses', 'Licenses')->name('licenses');
     Route::inertia('admin/websites', 'Websites')->name('websites');
-    Route::inertia('admin/request-logs', 'RequestLogs')->name('requestlogs');
+    Route::inertia('admin/requestlogs', 'RequestLogs')->name('requestlogs');
 });
 
 Route::middleware(['auth'])->prefix('ajax')->group(function () {
@@ -30,7 +30,7 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
         'tags' => TagController::class,
         'licenses' => LicenseController::class,
         'websites' => WebsiteController::class,
-        'request-logs' => RequestLogController::class,
+        // 'request-logs' => RequestLogController::class,
     ]);
 });
 

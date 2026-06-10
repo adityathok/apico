@@ -323,8 +323,8 @@ const fillForm = (postData: Post): void => {
 
 const fetchTaxonomies = async (): Promise<void> => {
     const [categoryResponse, tagResponse] = await Promise.all([
-        axios.get<CollectionResponse<Taxonomy>>('/api/categories'),
-        axios.get<CollectionResponse<Taxonomy>>('/api/tags'),
+        axios.get<CollectionResponse<Taxonomy>>('/ajax/categories'),
+        axios.get<CollectionResponse<Taxonomy>>('/ajax/tags'),
     ]);
 
     categories.value = categoryResponse.data.data.map((category) => ({
@@ -358,7 +358,7 @@ const resolveTagIds = async (): Promise<void> => {
         }
 
         const response = await axios.post<ResourceResponse<Taxonomy>>(
-            '/api/tags',
+            '/ajax/tags',
             {
                 name: tagName,
                 slug,
@@ -381,7 +381,7 @@ const resolveTagIds = async (): Promise<void> => {
 const fetchPost = async (id: number): Promise<void> => {
     try {
         const response = await axios.get<ResourceResponse<Post>>(
-            `/api/posts/${id}`,
+            `/ajax/posts/${id}`,
         );
 
         fillForm(response.data.data);
@@ -445,7 +445,7 @@ const buildFormData = (method?: 'PATCH'): FormData => {
 const storePost = async (): Promise<Post> => {
     if (image.value) {
         const response = await axios.post<ResourceResponse<Post>>(
-            '/api/posts',
+            '/ajax/posts',
             buildFormData(),
         );
 
@@ -453,7 +453,7 @@ const storePost = async (): Promise<Post> => {
     }
 
     const response = await axios.post<ResourceResponse<Post>>(
-        '/api/posts',
+        '/ajax/posts',
         buildPayload(),
     );
 
@@ -463,12 +463,12 @@ const storePost = async (): Promise<Post> => {
 const updatePost = async (id: number): Promise<Post> => {
     if (image.value) {
         await axios.post<ResourceResponse<Post>>(
-            `/api/posts/${id}`,
+            `/ajax/posts/${id}`,
             buildFormData('PATCH'),
         );
 
         const response = await axios.patch<ResourceResponse<Post>>(
-            `/api/posts/${id}`,
+            `/ajax/posts/${id}`,
             buildPayload(),
         );
 
@@ -476,7 +476,7 @@ const updatePost = async (id: number): Promise<Post> => {
     }
 
     const response = await axios.patch<ResourceResponse<Post>>(
-        `/api/posts/${id}`,
+        `/ajax/posts/${id}`,
         buildPayload(),
     );
 

@@ -26,7 +26,7 @@ test('post controller stores a post with category and tag pivots', function () {
     $tag = Tag::factory()->create();
     $image = UploadedFile::fake()->image('api.jpg');
 
-    $response = $this->post('/api/posts', [
+    $response = $this->post('/ajax/posts', [
         'user_id' => $user->id,
         'title' => 'Getting Started With APIs',
         'slug' => 'getting-started-with-apis',
@@ -49,7 +49,7 @@ test('post controller stores a post with category and tag pivots', function () {
 
     expect($post->categories()->pluck('categories.id')->all())->toBe([$category->id])
         ->and($post->tags()->pluck('tags.id')->all())->toBe([$tag->id])
-        ->and($post->image)->toStartWith('post/'.now()->format('y-m').'/');
+        ->and($post->image)->toStartWith('post/' . now()->format('y-m') . '/');
 
     Storage::disk('public')->assertExists($post->image);
 });
@@ -57,14 +57,14 @@ test('post controller stores a post with category and tag pivots', function () {
 test('post controller updates and deletes a post', function () {
     Storage::fake('public');
 
-    $oldImage = 'post/'.now()->format('y-m').'/old.jpg';
+    $oldImage = 'post/' . now()->format('y-m') . '/old.jpg';
     Storage::disk('public')->put($oldImage, 'old image');
 
     $post = Post::factory()->create(['image' => $oldImage]);
     $category = Category::factory()->create();
     $newImage = UploadedFile::fake()->image('updated.jpg');
 
-    $this->patch("/api/posts/{$post->id}", [
+    $this->patch("/ajax/posts/{$post->id}", [
         'title' => 'Updated Post Title',
         'image_caption' => 'Updated cover caption.',
         'image' => $newImage,
@@ -80,7 +80,7 @@ test('post controller updates and deletes a post', function () {
     Storage::disk('public')->assertMissing($oldImage);
     Storage::disk('public')->assertExists($post->image);
 
-    $this->deleteJson("/api/posts/{$post->id}")->assertNoContent();
+    $this->deleteJson("/ajax/posts/{$post->id}")->assertNoContent();
 
     $this->assertDatabaseMissing('posts', ['id' => $post->id]);
     Storage::disk('public')->assertMissing($post->image);
@@ -89,7 +89,7 @@ test('post controller updates and deletes a post', function () {
 test('category controller stores updates and deletes a category', function () {
     $post = Post::factory()->create();
 
-    $response = $this->postJson('/api/categories', [
+    $response = $this->postJson('/ajax/categories', [
         'name' => 'News',
         'slug' => 'news',
         'description' => 'Fresh updates.',
@@ -102,20 +102,20 @@ test('category controller stores updates and deletes a category', function () {
 
     $category = Category::where('slug', 'news')->firstOrFail();
 
-    $this->patchJson("/api/categories/{$category->id}", [
+    $this->patchJson("/ajax/categories/{$category->id}", [
         'name' => 'Product News',
     ])
         ->assertOk()
         ->assertJsonPath('data.name', 'Product News');
 
-    $this->deleteJson("/api/categories/{$category->id}")->assertNoContent();
+    $this->deleteJson("/ajax/categories/{$category->id}")->assertNoContent();
     $this->assertDatabaseMissing('categories', ['id' => $category->id]);
 });
 
 test('tag controller stores updates and deletes a tag', function () {
     $post = Post::factory()->create();
 
-    $response = $this->postJson('/api/tags', [
+    $response = $this->postJson('/ajax/tags', [
         'name' => 'Laravel',
         'slug' => 'laravel',
         'post_ids' => [$post->id],
@@ -127,20 +127,20 @@ test('tag controller stores updates and deletes a tag', function () {
 
     $tag = Tag::where('slug', 'laravel')->firstOrFail();
 
-    $this->patchJson("/api/tags/{$tag->id}", [
+    $this->patchJson("/ajax/tags/{$tag->id}", [
         'name' => 'Laravel Framework',
     ])
         ->assertOk()
         ->assertJsonPath('data.name', 'Laravel Framework');
 
-    $this->deleteJson("/api/tags/{$tag->id}")->assertNoContent();
+    $this->deleteJson("/ajax/tags/{$tag->id}")->assertNoContent();
     $this->assertDatabaseMissing('tags', ['id' => $tag->id]);
 });
 
 test('license controller stores updates and deletes a license', function () {
     $user = User::factory()->create();
 
-    $response = $this->postJson('/api/licenses', [
+    $response = $this->postJson('/ajax/licenses', [
         'user_id' => $user->id,
         'code' => 'APICO-TEST-0001',
         'is_active' => true,
@@ -154,7 +154,7 @@ test('license controller stores updates and deletes a license', function () {
 
     $license = License::where('code', 'APICO-TEST-0001')->firstOrFail();
 
-    $this->patchJson("/api/licenses/{$license->id}", [
+    $this->patchJson("/ajax/licenses/{$license->id}", [
         'is_active' => false,
         'used_at' => now()->toDateTimeString(),
     ])
@@ -162,12 +162,12 @@ test('license controller stores updates and deletes a license', function () {
         ->assertJsonPath('data.code', 'APICO-TEST-0001')
         ->assertJsonPath('data.is_active', false);
 
-    $this->deleteJson("/api/licenses/{$license->id}")->assertNoContent();
+    $this->deleteJson("/ajax/licenses/{$license->id}")->assertNoContent();
     $this->assertDatabaseMissing('licenses', ['id' => $license->id]);
 });
 
 test('website controller stores updates and deletes a website', function () {
-    $response = $this->postJson('/api/websites', [
+    $response = $this->postJson('/ajax/websites', [
         'domain' => 'example.test',
         'ip_address' => '192.168.1.10',
         'license_key' => 'APICO-WEBSITE-0001',
@@ -185,7 +185,7 @@ test('website controller stores updates and deletes a website', function () {
 
     $website = Website::where('domain', 'example.test')->firstOrFail();
 
-    $this->patchJson("/api/websites/{$website->id}", [
+    $this->patchJson("/ajax/websites/{$website->id}", [
         'status' => 'invalid',
         'plugin_version' => '4.5.7',
     ])
@@ -193,7 +193,7 @@ test('website controller stores updates and deletes a website', function () {
         ->assertJsonPath('data.status', 'invalid')
         ->assertJsonPath('data.plugin_version', '4.5.7');
 
-    $this->deleteJson("/api/websites/{$website->id}")->assertNoContent();
+    $this->deleteJson("/ajax/websites/{$website->id}")->assertNoContent();
     $this->assertDatabaseMissing('websites', ['id' => $website->id]);
 });
 
@@ -201,7 +201,7 @@ test('request log controller stores updates and deletes a request log', function
     $website = Website::factory()->create();
     $license = License::factory()->create();
 
-    $response = $this->postJson('/api/request-logs', [
+    $response = $this->postJson('/ajax/request-logs', [
         'route' => '/api/validate-license',
         'method' => 'POST',
         'request' => ['license_key' => $license->code],
@@ -218,7 +218,7 @@ test('request log controller stores updates and deletes a request log', function
 
     $requestLog = RequestLog::where('route', '/api/validate-license')->firstOrFail();
 
-    $this->patchJson("/api/request-logs/{$requestLog->id}", [
+    $this->patchJson("/ajax/request-logs/{$requestLog->id}", [
         'status' => 403,
         'request' => ['error' => 'invalid_license'],
     ])
@@ -226,6 +226,6 @@ test('request log controller stores updates and deletes a request log', function
         ->assertJsonPath('data.status', 403)
         ->assertJsonPath('data.request.error', 'invalid_license');
 
-    $this->deleteJson("/api/request-logs/{$requestLog->id}")->assertNoContent();
+    $this->deleteJson("/ajax/request-logs/{$requestLog->id}")->assertNoContent();
     $this->assertDatabaseMissing('request_logs', ['id' => $requestLog->id]);
 });

@@ -167,7 +167,7 @@ const fetchCategories = async (page = 1): Promise<void> => {
 
     try {
         const response = await axios.get<CategoriesResponse>(
-            '/api/categories',
+            '/ajax/categories',
             {
                 params: { page },
             },
@@ -260,7 +260,7 @@ const buildPayload = (): CategoryFormState => ({
 
 const storeCategory = async (): Promise<Category> => {
     const response = await axios.post<ResourceResponse<Category>>(
-        '/api/categories',
+        '/ajax/categories',
         buildPayload(),
     );
 
@@ -269,7 +269,7 @@ const storeCategory = async (): Promise<Category> => {
 
 const updateCategory = async (id: number): Promise<Category> => {
     const response = await axios.patch<ResourceResponse<Category>>(
-        `/api/categories/${id}`,
+        `/ajax/categories/${id}`,
         buildPayload(),
     );
 
@@ -301,7 +301,7 @@ const deleteCategory = async (): Promise<void> => {
     deleteMessage.value = null;
 
     try {
-        await axios.delete(`/api/categories/${deletingCategory.value.id}`);
+        await axios.delete(`/ajax/categories/${deletingCategory.value.id}`);
 
         const targetPage =
             categoryData.value.length === 1 && currentPage.value > 1

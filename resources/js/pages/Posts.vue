@@ -140,7 +140,7 @@ const fetchPosts = async (page = 1): Promise<void> => {
     errorMessage.value = null;
 
     try {
-        const response = await axios.get<PostsResponse>('/api/posts', {
+        const response = await axios.get<PostsResponse>('/ajax/posts', {
             params: { page },
         });
 
@@ -195,7 +195,7 @@ const deletePost = async (postToDelete: Post): Promise<void> => {
     errorMessage.value = null;
 
     try {
-        await axios.delete(`/api/posts/${postToDelete.id}`);
+        await axios.delete(`/ajax/posts/${postToDelete.id}`);
 
         const nextPage =
             postsData.value.length === 1 && currentPage.value > 1

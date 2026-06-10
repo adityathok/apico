@@ -214,7 +214,7 @@ const fetchWebsites = async (page = 1): Promise<void> => {
     errorMessage.value = null;
 
     try {
-        const response = await axios.get<WebsitesResponse>('/api/websites', {
+        const response = await axios.get<WebsitesResponse>('/ajax/websites', {
             params: { page },
         });
 
@@ -325,7 +325,7 @@ const buildPayload = (): WebsitePayload => ({
 
 const storeWebsite = async (): Promise<Website> => {
     const response = await axios.post<ResourceResponse<Website>>(
-        '/api/websites',
+        '/ajax/websites',
         buildPayload(),
     );
 
@@ -334,7 +334,7 @@ const storeWebsite = async (): Promise<Website> => {
 
 const updateWebsite = async (id: number): Promise<Website> => {
     const response = await axios.patch<ResourceResponse<Website>>(
-        `/api/websites/${id}`,
+        `/ajax/websites/${id}`,
         buildPayload(),
     );
 
@@ -366,7 +366,7 @@ const deleteWebsite = async (): Promise<void> => {
     deleteMessage.value = null;
 
     try {
-        await axios.delete(`/api/websites/${deletingWebsite.value.id}`);
+        await axios.delete(`/ajax/websites/${deletingWebsite.value.id}`);
 
         const targetPage =
             websiteData.value.length === 1 && currentPage.value > 1

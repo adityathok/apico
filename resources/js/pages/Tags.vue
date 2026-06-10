@@ -158,7 +158,7 @@ const fetchTags = async (page = 1): Promise<void> => {
     errorMessage.value = null;
 
     try {
-        const response = await axios.get<TagsResponse>('/api/tags', {
+        const response = await axios.get<TagsResponse>('/ajax/tags', {
             params: { page },
         });
 
@@ -246,7 +246,7 @@ const buildPayload = (): TagFormState => ({
 
 const storeTag = async (): Promise<Tag> => {
     const response = await axios.post<ResourceResponse<Tag>>(
-        '/api/tags',
+        '/ajax/tags',
         buildPayload(),
     );
 
@@ -255,7 +255,7 @@ const storeTag = async (): Promise<Tag> => {
 
 const updateTag = async (id: number): Promise<Tag> => {
     const response = await axios.patch<ResourceResponse<Tag>>(
-        `/api/tags/${id}`,
+        `/ajax/tags/${id}`,
         buildPayload(),
     );
 
@@ -287,7 +287,7 @@ const deleteTag = async (): Promise<void> => {
     deleteMessage.value = null;
 
     try {
-        await axios.delete(`/api/tags/${deletingTag.value.id}`);
+        await axios.delete(`/ajax/tags/${deletingTag.value.id}`);
 
         const targetPage =
             tagData.value.length === 1 && currentPage.value > 1

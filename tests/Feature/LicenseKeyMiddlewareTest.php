@@ -3,7 +3,7 @@
 use App\Models\License;
 
 test('api requests require a license header', function () {
-    $this->getJson('/api/posts')
+    $this->getJson('/ajax/posts')
         ->assertUnauthorized()
         ->assertJsonPath('message', 'License key is required.');
 });
@@ -14,7 +14,7 @@ test('api requests reject invalid license keys', function () {
     ]);
 
     $this->withHeader('License', 'APICO-INVALID')
-        ->getJson('/api/posts')
+        ->getJson('/ajax/posts')
         ->assertForbidden()
         ->assertJsonPath('message', 'License key is invalid.');
 });
@@ -25,7 +25,7 @@ test('api requests reject inactive license keys', function () {
     ]);
 
     $this->withHeader('License', $license->code)
-        ->getJson('/api/posts')
+        ->getJson('/ajax/posts')
         ->assertForbidden()
         ->assertJsonPath('message', 'License key is invalid.');
 });
@@ -36,7 +36,7 @@ test('api requests reject expired license keys', function () {
     ]);
 
     $this->withHeader('License', $license->code)
-        ->getJson('/api/posts')
+        ->getJson('/ajax/posts')
         ->assertForbidden()
         ->assertJsonPath('message', 'License key is invalid.');
 });
@@ -47,6 +47,6 @@ test('api requests accept active license keys', function () {
     ]);
 
     $this->withHeader('License', $license->code)
-        ->getJson('/api/posts')
+        ->getJson('/ajax/posts')
         ->assertOk();
 });

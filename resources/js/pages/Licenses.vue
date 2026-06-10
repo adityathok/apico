@@ -191,7 +191,7 @@ const fetchLicenses = async (page = 1): Promise<void> => {
     errorMessage.value = null;
 
     try {
-        const response = await axios.get<LicensesResponse>('/api/licenses', {
+        const response = await axios.get<LicensesResponse>('/ajax/licenses', {
             params: { page },
         });
 
@@ -313,7 +313,7 @@ const buildPayload = (): LicensePayload => ({
 
 const storeLicense = async (): Promise<License> => {
     const response = await axios.post<ResourceResponse<License>>(
-        '/api/licenses',
+        '/ajax/licenses',
         buildPayload(),
     );
 
@@ -322,7 +322,7 @@ const storeLicense = async (): Promise<License> => {
 
 const updateLicense = async (id: number): Promise<License> => {
     const response = await axios.patch<ResourceResponse<License>>(
-        `/api/licenses/${id}`,
+        `/ajax/licenses/${id}`,
         buildPayload(),
     );
 
@@ -354,7 +354,7 @@ const deleteLicense = async (): Promise<void> => {
     deleteMessage.value = null;
 
     try {
-        await axios.delete(`/api/licenses/${deletingLicense.value.id}`);
+        await axios.delete(`/ajax/licenses/${deletingLicense.value.id}`);
 
         const targetPage =
             licenseData.value.length === 1 && currentPage.value > 1
