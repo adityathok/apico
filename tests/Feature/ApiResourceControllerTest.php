@@ -10,6 +10,14 @@ use App\Models\Website;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
+beforeEach(function () {
+    $license = License::factory()->create([
+        'code' => 'APICO-API-TEST',
+    ]);
+
+    $this->withHeader('License', $license->code);
+});
+
 test('post controller stores a post with category and tag pivots', function () {
     Storage::fake('public');
 
