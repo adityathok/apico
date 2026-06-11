@@ -2,9 +2,11 @@
 
 use App\Models\License;
 use App\Models\RequestLog;
+use App\Models\User;
 use App\Models\Website;
 use Database\Seeders\RequestLogSeeder;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('request logs table has the expected columns', function () {
     expect(Schema::hasColumns('request_logs', [
@@ -43,6 +45,29 @@ test('a request log belongs to a website and license', function () {
         ->toBe(['license_key' => 'APICO-TEST-LICENSE'])
         ->and($requestLog->status)
         ->toBe(200);
+});
+
+test('authenticated users can view request logs from the controller', function () {
+    $user = User::factory()->create();
+    $requestLog = RequestLog::factory()->create([
+        'route' => '/api/validate-license',
+        'method' => 'POST',
+        'status' => 200,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('requestlogsIndex'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('RequestLogs')
+            ->has('requestLogs.data', 1)
+            ->where('requestLogs.data.0.id', $requestLog->id)
+            ->where('requestLogs.data.0.route', '/api/validate-license')
+            ->where('requestLogs.data.0.method', 'POST')
+            ->where('requestLogs.data.0.status', 200)
+            ->has('requestLogs.data.0.website')
+            ->has('requestLogs.data.0.license')
+            ->where('requestLogs.meta.total', 1));
 });
 
 test('request log seeder creates request logs once', function () {
