@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\NewsController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PostController;
@@ -22,4 +23,8 @@ Route::middleware(['auth'])->group(function () {
         'websites' => WebsiteController::class,
         'request-logs' => RequestLogController::class,
     ]);
+});
+
+Route::middleware(['license'])->prefix('v1')->group(function () {
+    Route::get('/news/categories', [NewsController::class, 'categories']);
 });
