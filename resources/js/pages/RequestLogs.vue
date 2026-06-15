@@ -241,24 +241,10 @@ watch(currentPage, (page) => {
                 :loading="isLoading"
                 sticky
             >
-                <template #route-cell="{ row }">
-                    <div class="flex items-center gap-3">
-                        <UAvatar
-                            :alt="row.original.route"
-                            icon="i-lucide-activity"
-                            size="lg"
-                        />
-
-                        <div class="min-w-0">
-                            <p class="truncate font-medium text-highlighted">
-                                {{ row.original.route }}
-                            </p>
-                            <p class="text-xs text-muted">
-                                {{ row.original.method }} · ID
-                                {{ row.original.id }}
-                            </p>
-                        </div>
-                    </div>
+                <template #route-cell="{ row }">                    
+                    <p class="truncate font-medium text-highlighted">
+                        {{ row.original.route }}
+                    </p>
                 </template>
 
                 <template #status-cell="{ row }">
@@ -276,12 +262,9 @@ watch(currentPage, (page) => {
                         >
                             {{ row.original.website.domain }}
                         </p>
-                        <p class="text-xs text-muted">
-                            ID {{ row.original.website.id }}
-                        </p>
                     </div>
                     <span v-else class="text-sm text-muted">
-                        ID {{ row.original.website_id }}
+                        -
                     </span>
                 </template>
 
@@ -292,12 +275,9 @@ watch(currentPage, (page) => {
                             variant="subtle"
                             :label="row.original.license.code"
                         />
-                        <p class="mt-1 text-xs text-muted">
-                            ID {{ row.original.license.id }}
-                        </p>
                     </div>
                     <span v-else class="text-sm text-muted">
-                        ID {{ row.original.license_id }}
+                        -
                     </span>
                 </template>
 

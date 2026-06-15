@@ -536,9 +536,6 @@ onMounted(() => {
                             <p class="truncate font-medium text-highlighted">
                                 {{ row.original.domain }}
                             </p>
-                            <p class="text-xs text-muted">
-                                ID {{ row.original.id }}
-                            </p>
                         </div>
                     </div>
                 </template>
