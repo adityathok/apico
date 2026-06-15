@@ -20,7 +20,7 @@ class LicenseFactory extends Factory
     {
         return [
             'user_id' => null,
-            'code' => Str::upper(Str::random(4).'-'.Str::random(4).'-'.Str::random(4).'-'.Str::random(4)),
+            'code' => Str::random(4) . '-' . Str::random(4) . '-' . Str::random(4),
             'is_active' => true,
             'used_at' => null,
             'expires_at' => fake()->optional()->dateTimeBetween('now', '+1 year'),
