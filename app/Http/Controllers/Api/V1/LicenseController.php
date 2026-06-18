@@ -3,36 +3,40 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\License;
 use App\Models\Website;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class LicenseController extends Controller
 {
-    public function index(Request $request, License $license)
+    public function index(Request $request, License $license): JsonResponse
     {
-        // Mengambil nilai header 'license'
-        $license = $request->header('license');
+        $validated = $request->validate([
+            'wp_version' => ['nullable', 'string', 'max:255'],
+            'php_version' => ['nullable', 'string', 'max:255'],
+            'velocity_addons_version' => ['nullable', 'string', 'max:255'],
+        ]);
 
-        // Cek jika license tidak valid
-        $license = License::where('code', $license)->first();
+        $license = License::where('code', $request->header('license'))->first();
 
-        // Jika license tidak valid
-        if (!$license) {
+        if (! $license instanceof License) {
             return response()->json([
                 'status' => false,
                 'message' => 'License not found',
             ], 404);
         }
 
-        // Mengambil nilai header 'source'
         $source = $request->header('source');
         $website = $source ? Website::where('domain', $source)->first() : null;
 
-        //update License Key website
         if ($website) {
-            $website->license_key = $license->code;
-            $website->save();
+            $website->fill([
+                'license_key' => $license->code,
+                'wp_version' => $validated['wp_version'] ?? $website->wp_version,
+                'php_version' => $validated['php_version'] ?? $website->php_version,
+                'plugin_version' => $validated['velocity_addons_version'] ?? $website->plugin_version,
+            ])->save();
         }
 
         return response()->json([
