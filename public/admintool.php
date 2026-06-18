@@ -242,6 +242,19 @@ function admintoolEscape(string $value): string
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function admintoolRenderPhpInfo(): string
+{
+    ob_start();
+    phpinfo();
+    $output = (string) ob_get_clean();
+
+    if (preg_match('/<body[^>]*>(.*)<\/body>/is', $output, $matches) === 1) {
+        return trim($matches[1]);
+    }
+
+    return $output;
+}
+
 $env = admintoolReadEnv($envPath);
 $password = $env['ADMINTOOL_PASSWORD'] ?? $env['ADMINS_TOOL_PASSWORD'] ?? $env['APP_KEY'] ?? '123456789';
 $sessionKey = hash('sha256', $basePath.'|admintool');
@@ -333,6 +346,12 @@ $commands = [
         'handler' => 'copy_public_html',
         'danger' => false,
     ],
+    'php_info' => [
+        'label' => 'PHP Info',
+        'description' => 'Menampilkan informasi konfigurasi PHP server saat ini.',
+        'handler' => 'php_info',
+        'danger' => false,
+    ],
 ];
 
 $result = null;
@@ -357,6 +376,12 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
             $basePath.DIRECTORY_SEPARATOR.'public',
             dirname($basePath).DIRECTORY_SEPARATOR.'public_html'
         );
+    } elseif (($commands[$selectedCommand]['handler'] ?? null) === 'php_info') {
+        $result = [
+            'exit_code' => 0,
+            'output' => admintoolRenderPhpInfo(),
+            'is_html' => true,
+        ];
     } elseif (! is_file($artisanPath)) {
         $result = [
             'exit_code' => 1,
@@ -532,6 +557,34 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
             margin-top: 18px;
         }
 
+        .phpinfo-content {
+            margin-top: 12px;
+            overflow: auto;
+            max-height: 70vh;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+
+        .phpinfo-content table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .phpinfo-content th,
+        .phpinfo-content td {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .phpinfo-content h1,
+        .phpinfo-content h2 {
+            margin-top: 0;
+        }
+
         pre {
             overflow: auto;
             max-height: 520px;
@@ -602,7 +655,11 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
                         <?= admintoolEscape($commands[$selectedCommand]['label'] ?? 'Command') ?>
                         selesai dengan exit code <?= (int) $result['exit_code'] ?>
                     </strong>
-                    <pre><code><?= admintoolEscape($result['output'] !== '' ? $result['output'] : 'Tidak ada output.') ?></code></pre>
+                    <?php if (($result['is_html'] ?? false) === true) { ?>
+                        <div class="phpinfo-content"><?= $result['output'] !== '' ? $result['output'] : '<p>Tidak ada output.</p>' ?></div>
+                    <?php } else { ?>
+                        <pre><code><?= admintoolEscape($result['output'] !== '' ? $result['output'] : 'Tidak ada output.') ?></code></pre>
+                    <?php } ?>
                 </section>
             <?php } ?>
 
