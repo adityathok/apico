@@ -22,6 +22,8 @@ class PostResource extends JsonResource
             'image' => $this->image,
             'image_url' => $this->imageUrl(),
             'image_caption' => $this->image_caption,
+            'thumb_url' => $this->imageUrl(),
+            'thumb_caption' => $this->image_caption,
             'excerpt' => $this->excerpt,
             'content' => $this->content,
             'post_tag' => $this->whenLoaded(
