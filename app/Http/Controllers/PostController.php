@@ -18,13 +18,28 @@ class PostController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
+        $validated = $request->validate([
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'post_per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $posts = Post::query()
+            ->with(['user:id,name,email', 'categories:id,name,slug', 'tags:id,name,slug'])
+            ->when(
+                array_key_exists('category_id', $validated) && $validated['category_id'] !== null,
+                fn($query) => $query->whereHas(
+                    'categories',
+                    fn($categoryQuery) => $categoryQuery->whereKey($validated['category_id'])
+                ),
+            )
+            ->latest()
+            ->paginate($validated['post_per_page'] ?? 15)
+            ->withQueryString();
+
         return PostResource::collection(
-            Post::query()
-                ->with(['user:id,name,email', 'categories:id,name,slug', 'tags:id,name,slug'])
-                ->latest()
-                ->paginate(),
+            $posts,
         );
     }
 
@@ -81,7 +96,7 @@ class PostController extends Controller
 
         $imageUrls = $posts
             ->getCollection()
-            ->mapWithKeys(fn (Post $post): array => [
+            ->mapWithKeys(fn(Post $post): array => [
                 $post->id => $this->imageUrl($post->image),
             ]);
 
@@ -162,7 +177,7 @@ class PostController extends Controller
 
     private function storeImage(Request $request): string
     {
-        return $request->file('image')->store('post/'.now()->format('y-m'), 'public');
+        return $request->file('image')->store('post/' . now()->format('y-m'), 'public');
     }
 
     private function deleteImage(Post $post): void

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Category;
 use App\Models\Post;
 use App\Models\User;
 use Database\Seeders\PostSeeder;
@@ -129,6 +130,42 @@ test('update normalizes slug with str slug before saving', function () {
         'id' => $post->id,
         'slug' => 'slug-baru-dengan-spasi',
     ]);
+});
+
+test('index can filter posts by category id', function () {
+    $user = User::factory()->create();
+    $selectedCategory = Category::factory()->create();
+    $otherCategory = Category::factory()->create();
+
+    $matchingPost = Post::factory()->for($user)->create([
+        'title' => 'Matching Post',
+        'slug' => 'matching-post',
+    ]);
+    $matchingPost->categories()->sync([$selectedCategory->id]);
+
+    $otherPost = Post::factory()->for($user)->create([
+        'title' => 'Other Post',
+        'slug' => 'other-post',
+    ]);
+    $otherPost->categories()->sync([$otherCategory->id]);
+
+    $this->actingAs($user)
+        ->getJson('/api/posts?category_id='.$selectedCategory->id)
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $matchingPost->id);
+});
+
+test('index can use custom posts per page', function () {
+    $user = User::factory()->create();
+
+    Post::factory()->count(3)->for($user)->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/posts?post_per_page=2')
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('meta.per_page', 2);
 });
 
 test('post seeder creates posts for seeded users once', function () {
