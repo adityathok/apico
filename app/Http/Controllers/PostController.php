@@ -9,6 +9,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -46,6 +47,8 @@ class PostController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ]);
+
+        $validated['slug'] = Str::slug($validated['slug']);
 
         if ($request->hasFile('image')) {
             $validated['image'] = $this->storeImage($request);
@@ -123,6 +126,10 @@ class PostController extends Controller
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
         ]);
+
+        if (array_key_exists('slug', $validated)) {
+            $validated['slug'] = Str::slug($validated['slug']);
+        }
 
         if ($request->hasFile('image')) {
             $this->deleteImage($post);

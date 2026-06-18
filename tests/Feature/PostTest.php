@@ -93,6 +93,44 @@ test('public posts route renders post cards with the frontend layout', function 
         ->assertSee(route('read', $post->slug), false);
 });
 
+test('store normalizes slug with str slug before saving', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/posts', [
+            'user_id' => $user->id,
+            'title' => 'Store Post',
+            'slug' => 'Slug Campur Spasi & Simbol',
+            'content' => 'Isi artikel untuk pengujian.',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.slug', 'slug-campur-spasi-simbol');
+
+    $this->assertDatabaseHas('posts', [
+        'title' => 'Store Post',
+        'slug' => 'slug-campur-spasi-simbol',
+    ]);
+});
+
+test('update normalizes slug with str slug before saving', function () {
+    $user = User::factory()->create();
+    $post = Post::factory()->for($user)->create([
+        'slug' => 'slug-lama',
+    ]);
+
+    $this->actingAs($user)
+        ->putJson('/api/posts/'.$post->id, [
+            'slug' => 'Slug Baru Dengan Spasi',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.slug', 'slug-baru-dengan-spasi');
+
+    $this->assertDatabaseHas('posts', [
+        'id' => $post->id,
+        'slug' => 'slug-baru-dengan-spasi',
+    ]);
+});
+
 test('post seeder creates posts for seeded users once', function () {
     Http::fake([
         'picsum.photos/*' => Http::response('fake picsum image', 200, [
