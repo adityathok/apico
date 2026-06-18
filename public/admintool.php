@@ -237,6 +237,65 @@ function admintoolCopyPublicToPublicHtml(string $sourcePath, string $targetPath)
     ];
 }
 
+/**
+ * @return array{exit_code: int, output: string}
+ */
+function admintoolCreatePublicHtmlStorageSymlink(string $basePath): array
+{
+    $publicHtmlPath = dirname($basePath).DIRECTORY_SEPARATOR.'public_html';
+    $linkPath = $publicHtmlPath.DIRECTORY_SEPARATOR.'storage';
+    $targetPath = $basePath.DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'app'.DIRECTORY_SEPARATOR.'public';
+
+    if (! is_dir($publicHtmlPath)) {
+        return [
+            'exit_code' => 1,
+            'output' => 'Folder public_html tidak ditemukan.',
+        ];
+    }
+
+    if (! is_dir($targetPath)) {
+        return [
+            'exit_code' => 1,
+            'output' => 'Folder target storage Laravel tidak ditemukan.',
+        ];
+    }
+
+    if (is_link($linkPath)) {
+        $existingTarget = readlink($linkPath);
+
+        if ($existingTarget === $targetPath) {
+            return [
+                'exit_code' => 0,
+                'output' => 'Symlink storage sudah ada dan mengarah ke target yang benar.',
+            ];
+        }
+
+        return [
+            'exit_code' => 1,
+            'output' => 'Symlink storage sudah ada tetapi mengarah ke: '.(string) $existingTarget,
+        ];
+    }
+
+    if (file_exists($linkPath)) {
+        return [
+            'exit_code' => 1,
+            'output' => 'Path public_html/storage sudah ada sebagai file atau folder biasa.',
+        ];
+    }
+
+    if (@symlink($targetPath, $linkPath)) {
+        return [
+            'exit_code' => 0,
+            'output' => 'Symlink berhasil dibuat: '.$linkPath.' -> '.$targetPath,
+        ];
+    }
+
+    return [
+        'exit_code' => 1,
+        'output' => 'Gagal membuat symlink. Pastikan fungsi symlink aktif dan permission folder public_html mencukupi.',
+    ];
+}
+
 function admintoolEscape(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -352,6 +411,12 @@ $commands = [
         'handler' => 'copy_public_html',
         'danger' => false,
     ],
+    'public_html_storage_link' => [
+        'label' => 'Public HTML Storage Link',
+        'description' => 'Membuat symlink public_html/storage ke folder laravel/storage/app/public.',
+        'handler' => 'public_html_storage_link',
+        'danger' => false,
+    ],
     'php_info' => [
         'label' => 'PHP Info',
         'description' => 'Menampilkan informasi konfigurasi PHP server saat ini.',
@@ -382,6 +447,8 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
             $basePath.DIRECTORY_SEPARATOR.'public',
             dirname($basePath).DIRECTORY_SEPARATOR.'public_html'
         );
+    } elseif (($commands[$selectedCommand]['handler'] ?? null) === 'public_html_storage_link') {
+        $result = admintoolCreatePublicHtmlStorageSymlink($basePath);
     } elseif (($commands[$selectedCommand]['handler'] ?? null) === 'php_info') {
         $result = [
             'exit_code' => 0,

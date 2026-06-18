@@ -53,6 +53,31 @@ PHP;
         ->toContain('UserSeeder');
 });
 
+test('admintool shows public html storage symlink action', function () {
+    $script = <<<'PHP'
+session_id('admintool-public-html-storage-link-test');
+session_start();
+$_SESSION[hash('sha256', getcwd().'|admintool')] = true;
+$_SESSION['admintool_csrf'] = 'test-csrf-token';
+session_write_close();
+
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_URI'] = '/admintool.php';
+
+ob_start();
+require 'public/admintool.php';
+echo ob_get_clean();
+PHP;
+
+    $process = new Process([PHP_BINARY, '-r', $script], base_path());
+    $process->mustRun();
+
+    expect($process->getOutput())
+        ->toContain('Public HTML Storage Link')
+        ->toContain('public_html/storage')
+        ->toContain('laravel/storage/app/public');
+});
+
 test('user seeder creates default users', function () {
     $this->seed(UserSeeder::class);
 
