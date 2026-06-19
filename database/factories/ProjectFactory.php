@@ -21,7 +21,8 @@ class ProjectFactory extends Factory
             'name' => fake()->company(),
             'version' => fake()->semver(),
             'github_url' => fake()->optional()->url(),
-            'package_file_url' => fake()->optional()->url(),
+            'package_file' => fake()->optional()->filePath(),
+            'package_external_url' => fake()->optional()->url(),
             'description' => fake()->optional()->sentence(),
             'type' => fake()->randomElement([
                 'project_internal',

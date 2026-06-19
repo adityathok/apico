@@ -40,7 +40,7 @@ class ProjectController extends Controller
     public function store(Request $request): ProjectResource
     {
         $validated = $request->validate($this->rules());
-        $validated['package_file_url'] = $this->storePackageFile($request);
+        $validated['package_file'] = $this->storePackageFile($request);
 
         $project = Project::create($validated);
 
@@ -64,7 +64,7 @@ class ProjectController extends Controller
 
         if ($request->hasFile('package_file')) {
             $this->deletePackageFile($project);
-            $validated['package_file_url'] = $this->storePackageFile($request);
+            $validated['package_file'] = $this->storePackageFile($request);
         }
 
         $project->update($validated);
@@ -105,6 +105,7 @@ class ProjectController extends Controller
             ])),
             'version' => ['nullable', 'string', 'max:255'],
             'github_url' => ['nullable', 'url', 'max:255'],
+            'package_external_url' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
             'type' => array_values(array_filter([
                 $isUpdate ? 'sometimes' : null,
@@ -135,30 +136,23 @@ class ProjectController extends Controller
         $file = $request->file('package_file');
 
         // 2. Tentukan nama file baru (contoh: nama-package-v1.0.0.zip)
-        $fileName = Str::slug($name) . '-' . Str::slug($version) . '.' . $file->getClientOriginalExtension();
+        $fileName = Str::slug($name).'-'.Str::slug($version).'.'.$file->getClientOriginalExtension();
 
         // 3. Tentukan folder tujuan
-        $folder = 'project-packages/' . Str::slug($name);
+        $folder = 'project-packages/'.Str::slug($name);
 
         // 4. Simpan dengan nama baru menggunakan storeAs
         $path = $file->storeAs($folder, $fileName, 'public');
 
-        return Storage::disk('public')->url($path);
+        return $path;
     }
 
     private function deletePackageFile(Project $project): void
     {
-        if ($project->package_file_url === null || ! str_contains($project->package_file_url, '/storage/')) {
+        if ($project->package_file === null || str_starts_with($project->package_file, 'http')) {
             return;
         }
 
-        $path = ltrim((string) parse_url($project->package_file_url, PHP_URL_PATH), '/');
-        $path = preg_replace('#^storage/#', '', $path);
-
-        if (! is_string($path) || $path === '') {
-            return;
-        }
-
-        Storage::disk('public')->delete($path);
+        Storage::disk('public')->delete($project->package_file);
     }
 }

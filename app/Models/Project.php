@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'version', 'github_url', 'package_file_url', 'description', 'type', 'parent_id'])]
+#[Fillable(['name', 'version', 'github_url', 'package_file', 'package_external_url', 'description', 'type', 'parent_id'])]
 class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */

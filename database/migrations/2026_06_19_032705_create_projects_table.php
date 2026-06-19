@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('name', 191);
             $table->string('version')->nullable();
             $table->string('github_url')->nullable();
-            $table->string('package_file_url')->nullable();
+            $table->string('package_file')->nullable();
+            $table->string('package_external_url')->nullable();
             $table->text('description')->nullable();
             $table->enum('type', [
                 'project_internal',

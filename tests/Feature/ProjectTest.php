@@ -13,7 +13,8 @@ test('projects table has the expected columns', function () {
         'name',
         'version',
         'github_url',
-        'package_file_url',
+        'package_file',
+        'package_external_url',
         'description',
         'type',
         'parent_id',
@@ -67,7 +68,8 @@ test('authenticated users can view projects from the controller', function () {
         'type' => 'wp_theme_child',
         'version' => '1.4.2',
         'github_url' => 'https://github.com/example/client-child-theme',
-        'package_file_url' => 'https://example.com/downloads/client-child-theme.zip',
+        'package_file' => 'project-packages/client-child-theme/client-child-theme-v1-4-2.zip',
+        'package_external_url' => 'https://example.com/downloads/client-child-theme.zip',
         'description' => 'Child theme for a client project.',
     ]);
 
@@ -82,6 +84,8 @@ test('authenticated users can view projects from the controller', function () {
             ->where('projects.data.0.type', 'wp_theme_child')
             ->where('projects.data.0.parent.id', $parentProject->id)
             ->where('projects.data.0.parent.name', 'Core Theme')
+            ->where('projects.data.0.package_file', 'project-packages/client-child-theme/client-child-theme-v1-4-2.zip')
+            ->where('projects.data.0.package_external_url', 'https://example.com/downloads/client-child-theme.zip')
             ->has('parentProjects', 2)
             ->where('projects.meta.total', 2));
 });
@@ -98,6 +102,7 @@ test('authenticated users can create a project', function () {
             'name' => 'Velocity Addons',
             'version' => '2.1.0',
             'github_url' => 'https://github.com/example/velocity-addons',
+            'package_external_url' => 'https://downloads.example.com/velocity-addons.zip',
             'description' => 'Plugin utama untuk klien.',
             'type' => 'wp_plugin',
             'parent_id' => $parentProject->id,
@@ -113,23 +118,19 @@ test('authenticated users can create a project', function () {
         'name' => 'Velocity Addons',
         'type' => 'wp_plugin',
         'parent_id' => $parentProject->id,
+        'package_external_url' => 'https://downloads.example.com/velocity-addons.zip',
     ]);
 
     $project = Project::where('name', 'Velocity Addons')->firstOrFail();
 
-    expect($project->package_file_url)
+    expect($project->package_file)
         ->not->toBeNull()
-        ->and($project->package_file_url)
-        ->toContain('/storage/project-packages/');
+        ->and($project->package_file)
+        ->toStartWith('project-packages/')
+        ->and($project->package_external_url)
+        ->toBe('https://downloads.example.com/velocity-addons.zip');
 
-    $storedPath = preg_replace(
-        '#^/storage/#',
-        '',
-        (string) parse_url($project->package_file_url, PHP_URL_PATH),
-    );
-
-    expect($storedPath)->toBeString();
-    Storage::disk('public')->assertExists($storedPath);
+    Storage::disk('public')->assertExists($project->package_file);
 });
 
 test('authenticated users can update a project', function () {
@@ -141,7 +142,8 @@ test('authenticated users can update a project', function () {
     $project = Project::factory()->for($oldParent, 'parent')->create([
         'name' => 'Initial Project',
         'type' => 'project_internal',
-        'package_file_url' => '/storage/project-packages/old-package.zip',
+        'package_file' => 'project-packages/old-package.zip',
+        'package_external_url' => 'https://downloads.example.com/old-package.zip',
     ]);
     Storage::disk('public')->put('project-packages/old-package.zip', 'old package');
     $replacementPackage = UploadedFile::fake()->create('updated-project.zip', 240, 'application/zip');
@@ -152,6 +154,7 @@ test('authenticated users can update a project', function () {
             'type' => 'project_client',
             'parent_id' => $newParent->id,
             'version' => '3.0.0',
+            'package_external_url' => 'https://downloads.example.com/updated-project.zip',
             'package_file' => $replacementPackage,
         ])
         ->assertOk()
@@ -166,23 +169,18 @@ test('authenticated users can update a project', function () {
         'type' => 'project_client',
         'parent_id' => $newParent->id,
         'version' => '3.0.0',
+        'package_external_url' => 'https://downloads.example.com/updated-project.zip',
     ]);
 
     $project->refresh();
 
-    expect($project->package_file_url)
+    expect($project->package_file)
         ->not->toBeNull()
-        ->and($project->package_file_url)
-        ->toContain('/storage/project-packages/');
+        ->and($project->package_file)
+        ->toStartWith('project-packages/')
+        ->and($project->package_external_url)
+        ->toBe('https://downloads.example.com/updated-project.zip');
 
     Storage::disk('public')->assertMissing('project-packages/old-package.zip');
-
-    $storedPath = preg_replace(
-        '#^/storage/#',
-        '',
-        (string) parse_url($project->package_file_url, PHP_URL_PATH),
-    );
-
-    expect($storedPath)->toBeString();
-    Storage::disk('public')->assertExists($storedPath);
+    Storage::disk('public')->assertExists($project->package_file);
 });

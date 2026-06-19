@@ -27,7 +27,9 @@ type Project = {
     name: string;
     version: string | null;
     github_url: string | null;
+    package_file: string | null;
     package_file_url: string | null;
+    package_external_url: string | null;
     description: string | null;
     type: ProjectType;
     parent_id: number | null;
@@ -58,6 +60,7 @@ type ProjectFormState = {
     name: string;
     version: string;
     github_url: string;
+    package_external_url: string;
     description: string;
     type: ProjectType;
     parent_id: string;
@@ -147,6 +150,7 @@ const state = reactive<ProjectFormState>({
     name: '',
     version: '',
     github_url: '',
+    package_external_url: '',
     description: '',
     type: 'project_internal',
     parent_id: noParentValue,
@@ -164,7 +168,9 @@ const filteredProjects = computed(() => {
             project.name,
             project.version,
             project.github_url,
+            project.package_file,
             project.package_file_url,
+            project.package_external_url,
             project.description,
             project.type,
             projectTypeLabel(project.type),
@@ -298,6 +304,7 @@ const resetForm = (): void => {
     state.name = '';
     state.version = '';
     state.github_url = '';
+    state.package_external_url = '';
     state.description = '';
     state.type = 'project_internal';
     state.parent_id = noParentValue;
@@ -319,6 +326,7 @@ const openEditModal = (project: Project): void => {
     state.name = project.name;
     state.version = project.version ?? '';
     state.github_url = project.github_url ?? '';
+    state.package_external_url = project.package_external_url ?? '';
     state.description = project.description ?? '';
     state.type = project.type;
     state.parent_id = project.parent_id
@@ -357,6 +365,7 @@ const buildPayload = (): FormData => {
 
     const version = nullableTrimmed(state.version);
     const githubUrl = nullableTrimmed(state.github_url);
+    const packageExternalUrl = nullableTrimmed(state.package_external_url);
     const description = nullableTrimmed(state.description);
     const parentId =
         state.parent_id === noParentValue ? null : Number(state.parent_id);
@@ -367,6 +376,10 @@ const buildPayload = (): FormData => {
 
     if (githubUrl !== null) {
         payload.append('github_url', githubUrl);
+    }
+
+    if (packageExternalUrl !== null) {
+        payload.append('package_external_url', packageExternalUrl);
     }
 
     if (description !== null) {
@@ -758,6 +771,20 @@ watch(isModalOpen, (open) => {
                             />
                         </UFormField>
                     </div>
+
+                    <UFormField
+                        name="package_external_url"
+                        label="Package External URL"
+                        hint="Optional"
+                        :error="fieldError('package_external_url')"
+                    >
+                        <UInput
+                            v-model="state.package_external_url"
+                            placeholder="https://example.com/downloads/package.zip"
+                            :disabled="isSaving"
+                            class="w-full"
+                        />
+                    </UFormField>
 
                     <UFormField
                         name="package_file"
