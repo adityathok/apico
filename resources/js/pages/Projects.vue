@@ -79,6 +79,8 @@ type ValidationResponse = {
     errors?: Record<string, string[]>;
 };
 
+const noParentValue = '__none__';
+
 const props = defineProps<{
     projects: ProjectsResponse;
     parentProjects: ParentProjectOption[];
@@ -157,7 +159,7 @@ const state = reactive<ProjectFormState>({
     package_file_url: '',
     description: '',
     type: 'project_internal',
-    parent_id: '',
+    parent_id: noParentValue,
 });
 
 const filteredProjects = computed(() => {
@@ -219,7 +221,7 @@ const parentOptions = computed(() => {
     return [
         {
             label: 'No parent project',
-            value: '',
+            value: noParentValue,
         },
         ...props.parentProjects
             .filter((project) => project.id !== editingProjectId.value)
@@ -283,7 +285,7 @@ const resetForm = (): void => {
     state.package_file_url = '';
     state.description = '';
     state.type = 'project_internal';
-    state.parent_id = '';
+    state.parent_id = noParentValue;
     editingProjectId.value = null;
     formMessage.value = null;
     serverErrors.value = {};
@@ -301,7 +303,9 @@ const openEditModal = (project: Project): void => {
     state.package_file_url = project.package_file_url ?? '';
     state.description = project.description ?? '';
     state.type = project.type;
-    state.parent_id = project.parent_id ? String(project.parent_id) : '';
+    state.parent_id = project.parent_id
+        ? String(project.parent_id)
+        : noParentValue;
     editingProjectId.value = project.id;
     formMessage.value = null;
     serverErrors.value = {};
@@ -330,7 +334,8 @@ const buildPayload = (): ProjectPayload => ({
     package_file_url: nullableTrimmed(state.package_file_url),
     description: nullableTrimmed(state.description),
     type: state.type,
-    parent_id: state.parent_id.trim() === '' ? null : Number(state.parent_id),
+    parent_id:
+        state.parent_id === noParentValue ? null : Number(state.parent_id),
 });
 
 const refreshProjects = (): void => {
@@ -439,163 +444,165 @@ watch(isModalOpen, (open) => {
 <template>
     <Head title="Projects" />
 
-    <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto p-4">
-        <div
-            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-            <div>
-                <h1 class="text-2xl font-semibold text-highlighted">
-                    Projects
-                </h1>
-                <p class="text-sm text-muted">
-                    {{ paginationSummary }}
-                </p>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <UInput
-                    v-model="search"
-                    icon="i-lucide-search"
-                    placeholder="Search projects..."
-                    :disabled="isLoading"
-                    class="w-full sm:w-72"
-                />
-
-                <UButton
-                    icon="i-lucide-plus"
-                    label="Add"
-                    :disabled="isLoading"
-                    @click="openCreateModal"
-                />
-
-                <UButton
-                    icon="i-lucide-refresh-cw"
-                    color="neutral"
-                    variant="outline"
-                    :loading="isLoading"
-                    aria-label="Refresh projects"
-                    @click="visitPage(currentPage)"
-                />
-            </div>
-        </div>
-
-        <div
-            class="overflow-hidden rounded-lg border border-default bg-default"
-        >
-            <UTable
-                :data="filteredProjects"
-                :columns="columns"
-                :loading="isLoading"
-                sticky
+    <div>
+        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto p-4">
+            <div
+                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             >
-                <template #name-cell="{ row }">
-                    <div class="min-w-0">
-                        <p class="truncate font-medium text-highlighted">
-                            {{ row.original.name }}
-                        </p>
-                        <p class="truncate text-xs text-muted">
-                            {{ row.original.description || 'No description' }}
-                        </p>
-                    </div>
-                </template>
+                <div>
+                    <h1 class="text-2xl font-semibold text-highlighted">
+                        Projects
+                    </h1>
+                    <p class="text-sm text-muted">
+                        {{ paginationSummary }}
+                    </p>
+                </div>
 
-                <template #type-cell="{ row }">
-                    <UBadge
-                        :color="typeColor(row.original.type)"
-                        variant="subtle"
-                        :label="projectTypeLabel(row.original.type)"
+                <div class="flex items-center gap-2">
+                    <UInput
+                        v-model="search"
+                        icon="i-lucide-search"
+                        placeholder="Search projects..."
+                        :disabled="isLoading"
+                        class="w-full sm:w-72"
                     />
-                </template>
 
-                <template #parent-cell="{ row }">
-                    <span class="text-sm text-muted">
-                        {{ row.original.parent?.name || '-' }}
-                    </span>
-                </template>
+                    <UButton
+                        icon="i-lucide-plus"
+                        label="Add"
+                        :disabled="isLoading"
+                        @click="openCreateModal"
+                    />
 
-                <template #version-cell="{ row }">
-                    <UBadge
+                    <UButton
+                        icon="i-lucide-refresh-cw"
                         color="neutral"
-                        variant="subtle"
-                        :label="row.original.version || '-'"
+                        variant="outline"
+                        :loading="isLoading"
+                        aria-label="Refresh projects"
+                        @click="visitPage(currentPage)"
                     />
-                </template>
-
-                <template #github_url-cell="{ row }">
-                    <ULink
-                        v-if="row.original.github_url"
-                        :to="row.original.github_url"
-                        target="_blank"
-                        class="text-sm"
-                    >
-                        Repository
-                    </ULink>
-                    <span v-else class="text-sm text-muted">-</span>
-                </template>
-
-                <template #package_file_url-cell="{ row }">
-                    <ULink
-                        v-if="row.original.package_file_url"
-                        :to="row.original.package_file_url"
-                        target="_blank"
-                        class="text-sm"
-                    >
-                        Download
-                    </ULink>
-                    <span v-else class="text-sm text-muted">-</span>
-                </template>
-
-                <template #created_at-cell="{ row }">
-                    {{ formatDate(row.original.created_at) }}
-                </template>
-
-                <template #actions-cell="{ row }">
-                    <div class="flex justify-end gap-1">
-                        <UButton
-                            icon="i-lucide-pencil"
-                            color="neutral"
-                            variant="ghost"
-                            aria-label="Edit project"
-                            :disabled="isLoading || isSaving"
-                            @click="openEditModal(row.original)"
-                        />
-                    </div>
-                </template>
-
-                <template #empty>
-                    <div class="flex flex-col items-center gap-2 py-10">
-                        <UIcon
-                            name="i-lucide-inbox"
-                            class="size-8 text-muted"
-                        />
-                        <p class="font-medium text-highlighted">
-                            Tidak ada project
-                        </p>
-                        <p class="text-sm text-muted">
-                            Data belum tersedia atau tidak cocok dengan
-                            pencarian.
-                        </p>
-                    </div>
-                </template>
-            </UTable>
+                </div>
+            </div>
 
             <div
-                v-if="
-                    props.projects.meta &&
-                    props.projects.meta.total > props.projects.meta.per_page
-                "
-                class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                class="overflow-hidden rounded-lg border border-default bg-default"
             >
-                <p class="text-sm text-muted">
-                    {{ paginationSummary }}
-                </p>
+                <UTable
+                    :data="filteredProjects"
+                    :columns="columns"
+                    :loading="isLoading"
+                    sticky
+                >
+                    <template #name-cell="{ row }">
+                        <div class="min-w-0">
+                            <p class="truncate font-medium text-highlighted">
+                                {{ row.original.name }}
+                            </p>
+                            <p class="truncate text-xs text-muted">
+                                {{ row.original.description || 'No description' }}
+                            </p>
+                        </div>
+                    </template>
 
-                <UPagination
-                    v-model:page="currentPage"
-                    :total="props.projects.meta.total"
-                    :items-per-page="props.projects.meta.per_page"
-                    :disabled="isLoading"
-                />
+                    <template #type-cell="{ row }">
+                        <UBadge
+                            :color="typeColor(row.original.type)"
+                            variant="subtle"
+                            :label="projectTypeLabel(row.original.type)"
+                        />
+                    </template>
+
+                    <template #parent-cell="{ row }">
+                        <span class="text-sm text-muted">
+                            {{ row.original.parent?.name || '-' }}
+                        </span>
+                    </template>
+
+                    <template #version-cell="{ row }">
+                        <UBadge
+                            color="neutral"
+                            variant="subtle"
+                            :label="row.original.version || '-'"
+                        />
+                    </template>
+
+                    <template #github_url-cell="{ row }">
+                        <ULink
+                            v-if="row.original.github_url"
+                            :to="row.original.github_url"
+                            target="_blank"
+                            class="text-sm"
+                        >
+                            Repository
+                        </ULink>
+                        <span v-else class="text-sm text-muted">-</span>
+                    </template>
+
+                    <template #package_file_url-cell="{ row }">
+                        <ULink
+                            v-if="row.original.package_file_url"
+                            :to="row.original.package_file_url"
+                            target="_blank"
+                            class="text-sm"
+                        >
+                            Download
+                        </ULink>
+                        <span v-else class="text-sm text-muted">-</span>
+                    </template>
+
+                    <template #created_at-cell="{ row }">
+                        {{ formatDate(row.original.created_at) }}
+                    </template>
+
+                    <template #actions-cell="{ row }">
+                        <div class="flex justify-end gap-1">
+                            <UButton
+                                icon="i-lucide-pencil"
+                                color="neutral"
+                                variant="ghost"
+                                aria-label="Edit project"
+                                :disabled="isLoading || isSaving"
+                                @click="openEditModal(row.original)"
+                            />
+                        </div>
+                    </template>
+
+                    <template #empty>
+                        <div class="flex flex-col items-center gap-2 py-10">
+                            <UIcon
+                                name="i-lucide-inbox"
+                                class="size-8 text-muted"
+                            />
+                            <p class="font-medium text-highlighted">
+                                Tidak ada project
+                            </p>
+                            <p class="text-sm text-muted">
+                                Data belum tersedia atau tidak cocok dengan
+                                pencarian.
+                            </p>
+                        </div>
+                    </template>
+                </UTable>
+
+                <div
+                    v-if="
+                        props.projects.meta &&
+                        props.projects.meta.total > props.projects.meta.per_page
+                    "
+                    class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p class="text-sm text-muted">
+                        {{ paginationSummary }}
+                    </p>
+
+                    <UPagination
+                        v-model:page="currentPage"
+                        :total="props.projects.meta.total"
+                        :items-per-page="props.projects.meta.per_page"
+                        :disabled="isLoading"
+                    />
+                </div>
             </div>
         </div>
 
