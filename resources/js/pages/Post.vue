@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
-import type { EditorToolbarItem, FormError } from '@nuxt/ui';
+import type { EditorToolbarItem, FormError, FormSubmitEvent } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { generate as generateArticle } from '@/actions/App/Http/Controllers/ArticleGeneratorController';
 import { post, posts } from '@/routes';
 
 type Taxonomy = {
@@ -59,6 +60,17 @@ type ValidationResponse = {
     errors?: Record<string, string[]>;
 };
 
+type TopicFormState = {
+    topic: string;
+};
+
+type GeneratedArticle = {
+    title?: string;
+    content?: string;
+    excerpt?: string;
+    tags?: string[];
+};
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -100,6 +112,15 @@ const isSaving = ref(false);
 const serverErrors = ref<Record<string, string>>({});
 const statusMessage = ref<string | null>(null);
 const loadError = ref<string | null>(null);
+const isGenerateModalOpen = ref(false);
+const isGenerating = ref(false);
+const aiFormMessage = ref<string | null>(null);
+const aiResult = ref<GeneratedArticle | null>(null);
+const aiRawResult = ref<string | null>(null);
+const aiServerErrors = ref<Record<string, string>>({});
+const topicState = reactive<TopicFormState>({
+    topic: '',
+});
 
 const title = computed(() => (isEdit.value ? 'Edit Post' : 'Create Post'));
 const submitLabel = computed(() =>
@@ -284,8 +305,22 @@ const validate = (formState: Partial<PostFormState>): FormError[] => {
     return errors;
 };
 
+const validateTopic = (formState: Partial<TopicFormState>): FormError[] => {
+    const errors: FormError[] = [];
+
+    if (!formState.topic?.trim()) {
+        errors.push({ name: 'topic', message: 'Topic wajib diisi.' });
+    }
+
+    return errors;
+};
+
 const fieldError = (name: string): string | undefined => {
     return serverErrors.value[name];
+};
+
+const aiFieldError = (name: string): string | undefined => {
+    return aiServerErrors.value[name];
 };
 
 const resetForm = (): void => {
@@ -302,6 +337,14 @@ const resetForm = (): void => {
     currentImage.value = null;
     postId.value = null;
     isEdit.value = false;
+};
+
+const resetAiGenerator = (): void => {
+    topicState.topic = '';
+    aiFormMessage.value = null;
+    aiResult.value = null;
+    aiRawResult.value = null;
+    aiServerErrors.value = {};
 };
 
 const fillForm = (postData: Post): void => {
@@ -501,6 +544,143 @@ const handleValidationErrors = (error: unknown): void => {
     );
 };
 
+const handleAiValidationErrors = (error: unknown): void => {
+    if (!(error instanceof AxiosError) || error.response?.status !== 422) {
+        aiFormMessage.value = 'Artikel AI gagal dibuat.';
+
+        return;
+    }
+
+    const response = error.response.data as ValidationResponse;
+    const errors = response.errors ?? {};
+
+    aiServerErrors.value = Object.fromEntries(
+        Object.entries(errors).map(([name, messages]) => [
+            name,
+            messages[0] ?? 'Invalid value.',
+        ]),
+    );
+};
+
+const normalizeGeneratedArticle = (
+    value: unknown,
+): { article: GeneratedArticle | null; raw: string | null } => {
+    if (typeof value === 'string') {
+        return {
+            article: {
+                content: value,
+            },
+            raw: value,
+        };
+    }
+
+    if (!value || typeof value !== 'object') {
+        return { article: null, raw: null };
+    }
+
+    const payload = value as Record<string, unknown>;
+    const title =
+        typeof payload.title === 'string' ? payload.title.trim() : undefined;
+    const content =
+        typeof payload.content === 'string'
+            ? payload.content.trim()
+            : undefined;
+    const excerpt =
+        typeof payload.excerpt === 'string'
+            ? payload.excerpt.trim()
+            : undefined;
+    const tags = Array.isArray(payload.tags)
+        ? payload.tags.filter(
+              (tag): tag is string =>
+                  typeof tag === 'string' && tag.trim() !== '',
+          )
+        : undefined;
+
+    return {
+        article: {
+            title,
+            content,
+            excerpt,
+            tags,
+        },
+        raw: JSON.stringify(payload, null, 2),
+    };
+};
+
+const applyGeneratedArticle = (article: GeneratedArticle): void => {
+    if (article.title) {
+        state.title = article.title;
+    }
+
+    if (article.excerpt) {
+        state.excerpt = article.excerpt;
+    }
+
+    if (article.content) {
+        state.content = article.content;
+    }
+
+    if (article.tags && article.tags.length > 0) {
+        state.tag_names = article.tags.join(', ');
+    }
+
+    if (!isEdit.value) {
+        state.slug = slugify(state.title);
+    }
+};
+
+const openGenerateModal = (): void => {
+    resetAiGenerator();
+    isGenerateModalOpen.value = true;
+};
+
+const closeGenerateModal = (): void => {
+    if (isGenerating.value) {
+        return;
+    }
+
+    isGenerateModalOpen.value = false;
+    resetAiGenerator();
+};
+
+const submitGenerateArticle = async (
+    _event: FormSubmitEvent<TopicFormState>,
+): Promise<void> => {
+    isGenerating.value = true;
+    aiFormMessage.value = null;
+    aiResult.value = null;
+    aiRawResult.value = null;
+    aiServerErrors.value = {};
+
+    try {
+        const route = generateArticle();
+        const response = await axios({
+            url: route.url,
+            method: route.method,
+            data: {
+                topic: topicState.topic,
+            },
+        });
+        const payload =
+            response.data && typeof response.data === 'object' && 'data' in response.data
+                ? response.data.data
+                : response.data;
+        const { article, raw } = normalizeGeneratedArticle(payload);
+
+        aiResult.value = article;
+        aiRawResult.value = raw;
+
+        if (article) {
+            applyGeneratedArticle(article);
+            statusMessage.value = 'Hasil artikel AI berhasil dimasukkan ke form.';
+        }
+    } catch (error) {
+        handleAiValidationErrors(error);
+    } finally {
+        isGenerating.value = false;
+    }
+};
+
 const submit = async (): Promise<void> => {
     isSaving.value = true;
     loadError.value = null;
@@ -588,13 +768,22 @@ onMounted(async () => {
                 </p>
             </div>
 
-            <UButton
-                :to="posts()"
-                icon="i-lucide-arrow-left"
-                color="neutral"
-                variant="outline"
-                label="Back"
-            />
+            <div class="flex items-center justify-end gap-2">                
+                <UButton
+                    icon="i-lucide-brain"
+                    color="primary"
+                    label="Generate AI"
+                    :disabled="isSaving"
+                    @click="openGenerateModal"
+                />
+                <UButton
+                    :to="posts()"
+                    icon="i-lucide-arrow-left"
+                    color="neutral"
+                    variant="outline"
+                    label="Back"
+                />
+            </div>
         </div>
 
         <UAlert
@@ -802,5 +991,129 @@ onMounted(async () => {
                 </div>
             </div>
         </UForm>
+
+        <UModal
+            v-model:open="isGenerateModalOpen"
+            title="Generate Article AI"
+            description="Masukkan topik artikel, lalu hasil AI akan ditampilkan dan diisikan ke form post."
+            :ui="{ footer: 'justify-end' }"
+        >
+            <template #body>
+                <UAlert
+                    v-if="aiFormMessage"
+                    color="error"
+                    variant="soft"
+                    icon="i-lucide-circle-alert"
+                    title="Ada masalah"
+                    :description="aiFormMessage"
+                    class="mb-4"
+                />
+
+                <UForm
+                    id="article-generator-form"
+                    :state="topicState"
+                    :validate="validateTopic"
+                    class="space-y-4"
+                    @submit="submitGenerateArticle"
+                >
+                    <UFormField
+                        name="topic"
+                        label="Topic"
+                        required
+                        :error="aiFieldError('topic')"
+                    >
+                        <UTextarea
+                            v-model="topicState.topic"
+                            placeholder="Contoh: strategi SEO untuk blog Laravel"
+                            :rows="4"
+                            autoresize
+                            :disabled="isGenerating"
+                            class="w-full"
+                        />
+                    </UFormField>
+                </UForm>
+
+                <div v-if="aiResult || aiRawResult" class="mt-6 space-y-4">
+                    <USeparator label="Hasil Generate" />
+
+                    <UFormField
+                        v-if="aiResult?.title"
+                        label="Title"
+                    >
+                        <UTextarea
+                            :model-value="aiResult.title"
+                            :rows="2"
+                            readonly
+                            class="w-full"
+                        />
+                    </UFormField>
+
+                    <UFormField
+                        v-if="aiResult?.excerpt"
+                        label="Excerpt"
+                    >
+                        <UTextarea
+                            :model-value="aiResult.excerpt"
+                            :rows="3"
+                            readonly
+                            class="w-full"
+                        />
+                    </UFormField>
+
+                    <UFormField
+                        v-if="aiResult?.content"
+                        label="Content"
+                    >
+                        <UTextarea
+                            :model-value="aiResult.content"
+                            :rows="12"
+                            readonly
+                            class="w-full"
+                        />
+                    </UFormField>
+
+                    <UFormField
+                        v-if="aiResult?.tags?.length"
+                        label="Tags"
+                    >
+                        <UInput
+                            :model-value="aiResult.tags.join(', ')"
+                            readonly
+                            class="w-full"
+                        />
+                    </UFormField>
+
+                    <UFormField
+                        v-if="!aiResult?.content && aiRawResult"
+                        label="Response"
+                    >
+                        <UTextarea
+                            :model-value="aiRawResult"
+                            :rows="12"
+                            readonly
+                            class="w-full font-mono text-xs"
+                        />
+                    </UFormField>
+                </div>
+            </template>
+
+            <template #footer>
+                <UButton
+                    label="Close"
+                    color="neutral"
+                    variant="outline"
+                    :disabled="isGenerating"
+                    @click="closeGenerateModal"
+                />
+
+                <UButton
+                    type="submit"
+                    form="article-generator-form"
+                    icon="i-lucide-sparkles"
+                    label="Generate"
+                    :loading="isGenerating"
+                />
+            </template>
+        </UModal>
     </div>
 </template>

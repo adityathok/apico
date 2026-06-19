@@ -2,23 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Ai\Agents\ArticleGenerator;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ArticleGeneratorController extends Controller
 {
-    public function generate(Request $request)
-    {
-        // 1. Validasi input dari user
-        $request->validate([
+    public function generate(
+        Request $request,
+        ArticleGenerator $articleGenerator,
+    ): JsonResponse {
+        $validated = $request->validate([
             'topic' => 'required|string|max:255',
         ]);
 
-        // 2. Panggil AI Agent Anda
-        $agent = new ArticleGenerator();
-        $article = $agent->prompt("Buatkan artikel menarik tentang: " . $request->topic);
+        $article = $articleGenerator->prompt(
+            'Buatkan artikel menarik tentang: '.$validated['topic'],
+        );
 
-        // 3. Kirim hasil artikel ke client
-        return response()->json($article);
+        return response()->json([
+            'data' => $article,
+        ]);
     }
 }
