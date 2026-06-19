@@ -58,20 +58,9 @@ type ProjectFormState = {
     name: string;
     version: string;
     github_url: string;
-    package_file_url: string;
     description: string;
     type: ProjectType;
     parent_id: string;
-};
-
-type ProjectPayload = {
-    name: string;
-    version: string | null;
-    github_url: string | null;
-    package_file_url: string | null;
-    description: string | null;
-    type: ProjectType;
-    parent_id: number | null;
 };
 
 type ValidationResponse = {
@@ -151,12 +140,13 @@ const isSaving = ref(false);
 const editingProjectId = ref<number | null>(null);
 const formMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
+const packageFile = ref<File | null>(null);
+const packageFileInput = ref<HTMLInputElement | null>(null);
 
 const state = reactive<ProjectFormState>({
     name: '',
     version: '',
     github_url: '',
-    package_file_url: '',
     description: '',
     type: 'project_internal',
     parent_id: noParentValue,
@@ -208,6 +198,25 @@ const modalDescription = computed(() =>
 const submitLabel = computed(() =>
     isEditing.value ? 'Update Project' : 'Create Project',
 );
+const packageFileLabel = computed(() =>
+    isEditing.value ? 'Replace ZIP Package' : 'ZIP Package',
+);
+const packageFileHint = computed(() =>
+    isEditing.value
+        ? 'Optional. Upload file baru hanya jika ingin mengganti package lama.'
+        : 'Required. Upload file ZIP package project.',
+);
+const currentPackageFileUrl = computed(() => {
+    if (editingProjectId.value === null) {
+        return null;
+    }
+
+    return (
+        props.projects.data.find(
+            (project) => project.id === editingProjectId.value,
+        )?.package_file_url ?? null
+    );
+});
 
 const projectTypeOptions = [
     { label: 'Internal Project', value: 'project_internal' },
@@ -275,6 +284,13 @@ const validate = (formState: Partial<ProjectFormState>): FormError[] => {
         errors.push({ name: 'type', message: 'Type project wajib dipilih.' });
     }
 
+    if (!isEditing.value && !packageFile.value) {
+        errors.push({
+            name: 'package_file',
+            message: 'File ZIP package wajib diupload.',
+        });
+    }
+
     return errors;
 };
 
@@ -282,10 +298,13 @@ const resetForm = (): void => {
     state.name = '';
     state.version = '';
     state.github_url = '';
-    state.package_file_url = '';
     state.description = '';
     state.type = 'project_internal';
     state.parent_id = noParentValue;
+    packageFile.value = null;
+    if (packageFileInput.value) {
+        packageFileInput.value.value = '';
+    }
     editingProjectId.value = null;
     formMessage.value = null;
     serverErrors.value = {};
@@ -300,12 +319,15 @@ const openEditModal = (project: Project): void => {
     state.name = project.name;
     state.version = project.version ?? '';
     state.github_url = project.github_url ?? '';
-    state.package_file_url = project.package_file_url ?? '';
     state.description = project.description ?? '';
     state.type = project.type;
     state.parent_id = project.parent_id
         ? String(project.parent_id)
         : noParentValue;
+    packageFile.value = null;
+    if (packageFileInput.value) {
+        packageFileInput.value.value = '';
+    }
     editingProjectId.value = project.id;
     formMessage.value = null;
     serverErrors.value = {};
@@ -327,16 +349,40 @@ const nullableTrimmed = (value: string): string | null => {
     return trimmedValue === '' ? null : trimmedValue;
 };
 
-const buildPayload = (): ProjectPayload => ({
-    name: state.name.trim(),
-    version: nullableTrimmed(state.version),
-    github_url: nullableTrimmed(state.github_url),
-    package_file_url: nullableTrimmed(state.package_file_url),
-    description: nullableTrimmed(state.description),
-    type: state.type,
-    parent_id:
-        state.parent_id === noParentValue ? null : Number(state.parent_id),
-});
+const buildPayload = (): FormData => {
+    const payload = new FormData();
+
+    payload.append('name', state.name.trim());
+    payload.append('type', state.type);
+
+    const version = nullableTrimmed(state.version);
+    const githubUrl = nullableTrimmed(state.github_url);
+    const description = nullableTrimmed(state.description);
+    const parentId =
+        state.parent_id === noParentValue ? null : Number(state.parent_id);
+
+    if (version !== null) {
+        payload.append('version', version);
+    }
+
+    if (githubUrl !== null) {
+        payload.append('github_url', githubUrl);
+    }
+
+    if (description !== null) {
+        payload.append('description', description);
+    }
+
+    if (parentId !== null) {
+        payload.append('parent_id', String(parentId));
+    }
+
+    if (packageFile.value) {
+        payload.append('package_file', packageFile.value);
+    }
+
+    return payload;
+};
 
 const refreshProjects = (): void => {
     visitPage(currentPage.value);
@@ -352,9 +398,12 @@ const storeProject = async (): Promise<Project> => {
 };
 
 const updateProject = async (id: number): Promise<Project> => {
-    const response = await axios.patch<ResourceResponse<Project>>(
+    const payload = buildPayload();
+    payload.append('_method', 'PATCH');
+
+    const response = await axios.post<ResourceResponse<Project>>(
         `/ajax/projects/${id}`,
-        buildPayload(),
+        payload,
     );
 
     return response.data.data;
@@ -376,6 +425,11 @@ const handleValidationErrors = (error: unknown): void => {
             messages[0] ?? 'Invalid value.',
         ]),
     );
+};
+
+const updatePackageFile = (event: Event): void => {
+    const target = event.target as HTMLInputElement;
+    packageFile.value = target.files?.[0] ?? null;
 };
 
 const submitProject = async (
@@ -706,17 +760,38 @@ watch(isModalOpen, (open) => {
                     </div>
 
                     <UFormField
-                        name="package_file_url"
-                        label="Package File URL"
-                        hint="Optional"
-                        :error="fieldError('package_file_url')"
+                        name="package_file"
+                        :label="packageFileLabel"
+                        :hint="packageFileHint"
+                        :error="fieldError('package_file')"
                     >
-                        <UInput
-                            v-model="state.package_file_url"
-                            placeholder="https://example.com/downloads/package.zip"
+                        <input
+                            ref="packageFileInput"
+                            type="file"
+                            accept=".zip,application/zip"
                             :disabled="isSaving"
-                            class="w-full"
-                        />
+                            class="block w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+                            @change="updatePackageFile"
+                        >
+                        <p
+                            v-if="packageFile"
+                            class="mt-2 text-xs text-muted"
+                        >
+                            File dipilih: {{ packageFile.name }}
+                        </p>
+                        <p
+                            v-else-if="isEditing && currentPackageFileUrl"
+                            class="mt-2 text-xs text-muted"
+                        >
+                            File saat ini:
+                            <a
+                                :href="currentPackageFileUrl"
+                                target="_blank"
+                                class="underline"
+                            >
+                                Download current package
+                            </a>
+                        </p>
                     </UFormField>
 
                     <UFormField

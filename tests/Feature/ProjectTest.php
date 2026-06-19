@@ -2,7 +2,9 @@
 
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('projects table has the expected columns', function () {
@@ -85,18 +87,21 @@ test('authenticated users can view projects from the controller', function () {
 });
 
 test('authenticated users can create a project', function () {
+    Storage::fake('public');
+
     $user = User::factory()->create();
     $parentProject = Project::factory()->create();
+    $package = UploadedFile::fake()->create('velocity-addons.zip', 120, 'application/zip');
 
     $this->actingAs($user)
-        ->postJson('/ajax/projects', [
+        ->post('/ajax/projects', [
             'name' => 'Velocity Addons',
             'version' => '2.1.0',
             'github_url' => 'https://github.com/example/velocity-addons',
-            'package_file_url' => 'https://example.com/packages/velocity-addons.zip',
             'description' => 'Plugin utama untuk klien.',
             'type' => 'wp_plugin',
             'parent_id' => $parentProject->id,
+            'package_file' => $package,
         ])
         ->assertCreated()
         ->assertJsonPath('data.name', 'Velocity Addons')
@@ -109,23 +114,45 @@ test('authenticated users can create a project', function () {
         'type' => 'wp_plugin',
         'parent_id' => $parentProject->id,
     ]);
+
+    $project = Project::where('name', 'Velocity Addons')->firstOrFail();
+
+    expect($project->package_file_url)
+        ->not->toBeNull()
+        ->and($project->package_file_url)
+        ->toContain('/storage/project-packages/');
+
+    $storedPath = preg_replace(
+        '#^/storage/#',
+        '',
+        (string) parse_url($project->package_file_url, PHP_URL_PATH),
+    );
+
+    expect($storedPath)->toBeString();
+    Storage::disk('public')->assertExists($storedPath);
 });
 
 test('authenticated users can update a project', function () {
+    Storage::fake('public');
+
     $user = User::factory()->create();
     $oldParent = Project::factory()->create(['name' => 'Old Parent']);
     $newParent = Project::factory()->create(['name' => 'New Parent']);
     $project = Project::factory()->for($oldParent, 'parent')->create([
         'name' => 'Initial Project',
         'type' => 'project_internal',
+        'package_file_url' => '/storage/project-packages/old-package.zip',
     ]);
+    Storage::disk('public')->put('project-packages/old-package.zip', 'old package');
+    $replacementPackage = UploadedFile::fake()->create('updated-project.zip', 240, 'application/zip');
 
     $this->actingAs($user)
-        ->patchJson("/ajax/projects/{$project->id}", [
+        ->patch("/ajax/projects/{$project->id}", [
             'name' => 'Updated Project',
             'type' => 'project_client',
             'parent_id' => $newParent->id,
             'version' => '3.0.0',
+            'package_file' => $replacementPackage,
         ])
         ->assertOk()
         ->assertJsonPath('data.name', 'Updated Project')
@@ -140,4 +167,22 @@ test('authenticated users can update a project', function () {
         'parent_id' => $newParent->id,
         'version' => '3.0.0',
     ]);
+
+    $project->refresh();
+
+    expect($project->package_file_url)
+        ->not->toBeNull()
+        ->and($project->package_file_url)
+        ->toContain('/storage/project-packages/');
+
+    Storage::disk('public')->assertMissing('project-packages/old-package.zip');
+
+    $storedPath = preg_replace(
+        '#^/storage/#',
+        '',
+        (string) parse_url($project->package_file_url, PHP_URL_PATH),
+    );
+
+    expect($storedPath)->toBeString();
+    Storage::disk('public')->assertExists($storedPath);
 });
