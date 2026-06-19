@@ -80,5 +80,64 @@ test('authenticated users can view projects from the controller', function () {
             ->where('projects.data.0.type', 'wp_theme_child')
             ->where('projects.data.0.parent.id', $parentProject->id)
             ->where('projects.data.0.parent.name', 'Core Theme')
+            ->has('parentProjects', 2)
             ->where('projects.meta.total', 2));
+});
+
+test('authenticated users can create a project', function () {
+    $user = User::factory()->create();
+    $parentProject = Project::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/ajax/projects', [
+            'name' => 'Velocity Addons',
+            'version' => '2.1.0',
+            'github_url' => 'https://github.com/example/velocity-addons',
+            'package_file_url' => 'https://example.com/packages/velocity-addons.zip',
+            'description' => 'Plugin utama untuk klien.',
+            'type' => 'wp_plugin',
+            'parent_id' => $parentProject->id,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.name', 'Velocity Addons')
+        ->assertJsonPath('data.type', 'wp_plugin')
+        ->assertJsonPath('data.parent.id', $parentProject->id)
+        ->assertJsonPath('data.parent.name', $parentProject->name);
+
+    $this->assertDatabaseHas('projects', [
+        'name' => 'Velocity Addons',
+        'type' => 'wp_plugin',
+        'parent_id' => $parentProject->id,
+    ]);
+});
+
+test('authenticated users can update a project', function () {
+    $user = User::factory()->create();
+    $oldParent = Project::factory()->create(['name' => 'Old Parent']);
+    $newParent = Project::factory()->create(['name' => 'New Parent']);
+    $project = Project::factory()->for($oldParent, 'parent')->create([
+        'name' => 'Initial Project',
+        'type' => 'project_internal',
+    ]);
+
+    $this->actingAs($user)
+        ->patchJson("/ajax/projects/{$project->id}", [
+            'name' => 'Updated Project',
+            'type' => 'project_client',
+            'parent_id' => $newParent->id,
+            'version' => '3.0.0',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Updated Project')
+        ->assertJsonPath('data.type', 'project_client')
+        ->assertJsonPath('data.version', '3.0.0')
+        ->assertJsonPath('data.parent.id', $newParent->id);
+
+    $this->assertDatabaseHas('projects', [
+        'id' => $project->id,
+        'name' => 'Updated Project',
+        'type' => 'project_client',
+        'parent_id' => $newParent->id,
+        'version' => '3.0.0',
+    ]);
 });

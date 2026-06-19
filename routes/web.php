@@ -31,6 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::apiResources([
         'posts' => PostController::class,
+        'projects' => ProjectController::class,
         'categories' => CategoryController::class,
         'tags' => TagController::class,
         'licenses' => LicenseController::class,
