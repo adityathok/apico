@@ -16,6 +16,7 @@ import {
 import {
     dashboard,
     posts,
+    projects,
     categories,
     tags,
     licenses,
@@ -27,6 +28,7 @@ import {
     FolderGit2,
     LayoutGrid,
     BookOpen,
+    FolderKanban,
     Folder,
     Tag,
     Key,
@@ -45,6 +47,11 @@ const mainNavItems: NavItem[] = [
         title: 'Posts',
         href: posts(),
         icon: FileText,
+    },
+    {
+        title: 'Projects',
+        href: projects(),
+        icon: FolderKanban,
     },
     {
         title: 'Categories',

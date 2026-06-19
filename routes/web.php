@@ -1,13 +1,13 @@
 <?php
 
-use App\Http\Controllers\PostController;
+use App\Http\Controllers\ArticleGeneratorController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LicenseController;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RequestLogController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\WebsiteController;
-use App\Http\Controllers\ArticleGeneratorController;
-
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -18,6 +18,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
     Route::inertia('admin/post', 'Post')->name('post');
     Route::inertia('admin/posts', 'Posts')->name('posts');
+    Route::get('admin/projects', [ProjectController::class, 'index'])->name('projects');
     Route::inertia('admin/categories', 'Categories')->name('categories');
     Route::inertia('admin/tags', 'Tags')->name('tags');
     Route::inertia('admin/licenses', 'Licenses')->name('licenses');
@@ -40,4 +41,4 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::post('article-generator', [ArticleGeneratorController::class, 'generate']);
 });
 
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';
