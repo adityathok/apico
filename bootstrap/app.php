@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureLicenseKey;
+use App\Http\Middleware\EnsurePublicAiSignature;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'license' => EnsureLicenseKey::class,
+            'public.ai.signature' => EnsurePublicAiSignature::class,
         ]);
 
         $middleware->web(append: [
