@@ -240,6 +240,10 @@ watch(currentPage, (page) => {
                 :columns="columns"
                 :loading="isLoading"
                 sticky
+                :ui="{
+                    thead: 'bg-primary-200',
+                    th: 'text-primary-800',
+                }"
             >
                 <template #route-cell="{ row }">                    
                     <p class="truncate font-medium text-highlighted">

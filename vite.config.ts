@@ -41,6 +41,11 @@ export default defineConfig({
         ui({
             colorMode: false,
             router: 'inertia',
+            ui: {
+                colors: {
+                    primary: 'black',
+                }
+            }
         }),
     ],
 });
