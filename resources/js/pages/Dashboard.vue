@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { VisAxis, VisDonut, VisLine, VisXYContainer } from '@unovis/vue';
+import {
+    VisAxis,
+    VisDonut,
+    VisLine,
+    VisSingleContainer,
+    VisXYContainer,
+} from '@unovis/vue';
 import { computed } from 'vue';
 import { dashboard } from '@/routes';
 
@@ -173,18 +179,16 @@ const donutCenterSubLabel = 'Requests';
 
                 <div class="space-y-4">
                     <div class="rounded-xl bg-muted/20 p-3">
-                        <VisXYContainer
-                            :data="dailyChartData"
-                            :height="280"
-                            class="dashboard-chart"
-                        >
+                        <VisXYContainer :height="280" class="dashboard-chart">
                             <VisLine
+                                :data="dailyChartData"
                                 :x="lineX"
                                 :y="lineY"
                                 color="var(--color-chart-1)"
                                 :lineWidth="3"
                             />
                             <VisAxis
+                                :data="dailyChartData"
                                 type="x"
                                 :numTicks="6"
                                 :gridLine="false"
@@ -192,6 +196,7 @@ const donutCenterSubLabel = 'Requests';
                                 :tickFormat="lineTickFormat"
                             />
                             <VisAxis
+                                :data="dailyChartData"
                                 type="y"
                                 :numTicks="5"
                                 :tickFormat="lineValueFormat"
@@ -233,17 +238,20 @@ const donutCenterSubLabel = 'Requests';
                         v-if="topRoutesChartData.length > 0"
                         class="rounded-xl bg-muted/20 p-3"
                     >
-                        <VisDonut
+                        <VisSingleContainer
                             :data="topRoutesChartData"
-                            :value="donutValue"
-                            :color="donutColor"
                             :height="260"
-                            :arcWidth="28"
-                            :padAngle="0.03"
-                            :cornerRadius="6"
-                            :centralLabel="donutCenterLabel"
-                            :centralSubLabel="donutCenterSubLabel"
-                        />
+                        >
+                            <VisDonut
+                                :value="donutValue"
+                                :color="donutColor"
+                                :arcWidth="28"
+                                :padAngle="0.03"
+                                :cornerRadius="6"
+                                :centralLabel="donutCenterLabel"
+                                :centralSubLabel="donutCenterSubLabel"
+                            />
+                        </VisSingleContainer>
                     </div>
 
                     <div v-if="topRoutesChartData.length > 0" class="space-y-3">
