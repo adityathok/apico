@@ -41,6 +41,7 @@ class ProjectController extends Controller
     {
         $validated = $request->validate($this->rules());
         $validated['slug'] = Str::slug($validated['slug']);
+        $validated = $this->normalizeRequiredVersions($validated);
         $validated['package_file'] = $this->storePackageFile($request);
 
         $project = Project::create($validated);
@@ -66,6 +67,8 @@ class ProjectController extends Controller
         if (array_key_exists('slug', $validated)) {
             $validated['slug'] = Str::slug($validated['slug']);
         }
+
+        $validated = $this->normalizeRequiredVersions($validated, $project);
 
         if ($request->hasFile('package_file')) {
             $this->deletePackageFile($project);
@@ -116,6 +119,8 @@ class ProjectController extends Controller
                 Rule::unique('projects', 'slug')->ignore($project),
             ])),
             'version' => ['nullable', 'string', 'max:255'],
+            'requires_wp' => ['nullable', 'string', 'max:255'],
+            'requires_php' => ['nullable', 'string', 'max:255'],
             'github_url' => ['nullable', 'url', 'max:255'],
             'package_external_url' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -137,6 +142,32 @@ class ProjectController extends Controller
                 Rule::notIn($project ? [$project->id] : []),
             ],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalizeRequiredVersions(array $validated, ?Project $project = null): array
+    {
+        $type = $validated['type'] ?? $project?->type;
+
+        if (! $this->isWordPressType($type)) {
+            $validated['requires_wp'] = null;
+            $validated['requires_php'] = null;
+
+            return $validated;
+        }
+
+        $validated['requires_wp'] = $validated['requires_wp'] ?? null;
+        $validated['requires_php'] = $validated['requires_php'] ?? null;
+
+        return $validated;
+    }
+
+    private function isWordPressType(mixed $type): bool
+    {
+        return in_array($type, ['wp_theme', 'wp_plugin', 'wp_theme_child'], true);
     }
 
     private function storePackageFile(Request $request): string

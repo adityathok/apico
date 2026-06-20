@@ -27,6 +27,8 @@ type Project = {
     name: string;
     slug: string;
     version: string | null;
+    requires: string | null;
+    requires_php: string | null;
     github_url: string | null;
     package_file: string | null;
     package_file_url: string | null;
@@ -61,6 +63,8 @@ type ProjectFormState = {
     name: string;
     slug: string;
     version: string;
+    requires_wp: string;
+    requires_php: string;
     github_url: string;
     package_external_url: string;
     description: string;
@@ -156,6 +160,8 @@ const state = reactive<ProjectFormState>({
     name: '',
     slug: '',
     version: '',
+    requires_wp: '',
+    requires_php: '',
     github_url: '',
     package_external_url: '',
     description: '',
@@ -175,6 +181,8 @@ const filteredProjects = computed(() => {
             project.name,
             project.slug,
             project.version,
+            project.requires,
+            project.requires_php,
             project.github_url,
             project.package_file,
             project.package_file_url,
@@ -239,6 +247,16 @@ const projectTypeOptions = [
     { label: 'WordPress Plugin', value: 'wp_plugin' },
     { label: 'WordPress Child Theme', value: 'wp_theme_child' },
 ];
+
+const wordPressProjectTypes: ProjectType[] = [
+    'wp_theme',
+    'wp_plugin',
+    'wp_theme_child',
+];
+
+const showsRequiredVersions = computed(() => {
+    return wordPressProjectTypes.includes(state.type);
+});
 
 const parentOptions = computed(() => {
     return [
@@ -324,6 +342,8 @@ const resetForm = (): void => {
     state.name = '';
     state.slug = '';
     state.version = '';
+    state.requires_wp = '';
+    state.requires_php = '';
     state.github_url = '';
     state.package_external_url = '';
     state.description = '';
@@ -347,6 +367,8 @@ const openEditModal = (project: Project): void => {
     state.name = project.name;
     state.slug = project.slug;
     state.version = project.version ?? '';
+    state.requires_wp = project.requires ?? '';
+    state.requires_php = project.requires_php ?? '';
     state.github_url = project.github_url ?? '';
     state.package_external_url = project.package_external_url ?? '';
     state.description = project.description ?? '';
@@ -387,6 +409,8 @@ const buildPayload = (): FormData => {
     payload.append('type', state.type);
 
     const version = nullableTrimmed(state.version);
+    const requiresWp = nullableTrimmed(state.requires_wp);
+    const requiresPhp = nullableTrimmed(state.requires_php);
     const githubUrl = nullableTrimmed(state.github_url);
     const packageExternalUrl = nullableTrimmed(state.package_external_url);
     const description = nullableTrimmed(state.description);
@@ -395,6 +419,14 @@ const buildPayload = (): FormData => {
 
     if (version !== null) {
         payload.append('version', version);
+    }
+
+    if (showsRequiredVersions.value && requiresWp !== null) {
+        payload.append('requires_wp', requiresWp);
+    }
+
+    if (showsRequiredVersions.value && requiresPhp !== null) {
+        payload.append('requires_php', requiresPhp);
     }
 
     if (githubUrl !== null) {
@@ -516,6 +548,16 @@ watch(
     (nameValue) => {
         if (!isEditing.value && state.slug === '') {
             state.slug = slugify(nameValue);
+        }
+    },
+);
+
+watch(
+    () => state.type,
+    (typeValue) => {
+        if (!wordPressProjectTypes.includes(typeValue)) {
+            state.requires_wp = '';
+            state.requires_php = '';
         }
     },
 );
@@ -806,6 +848,53 @@ watch(isModalOpen, (open) => {
                             <UInput
                                 v-model="state.version"
                                 placeholder="1.0.0"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+
+                        <UFormField
+                            v-if="showsRequiredVersions"
+                            name="requires_wp"
+                            label="Requires WP"
+                            hint="Optional"
+                            :error="fieldError('requires_wp')"
+                        >
+                            <UInput
+                                v-model="state.requires_wp"
+                                placeholder="6.7"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+
+                        <UFormField
+                            v-else
+                            name="github_url"
+                            label="GitHub URL"
+                            hint="Optional"
+                            :error="fieldError('github_url')"
+                        >
+                            <UInput
+                                v-model="state.github_url"
+                                placeholder="https://github.com/example/repo"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <UFormField
+                            v-if="showsRequiredVersions"
+                            name="requires_php"
+                            label="Requires PHP"
+                            hint="Optional"
+                            :error="fieldError('requires_php')"
+                        >
+                            <UInput
+                                v-model="state.requires_php"
+                                placeholder="8.2"
                                 :disabled="isSaving"
                                 class="w-full"
                             />

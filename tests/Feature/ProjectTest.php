@@ -13,6 +13,8 @@ test('projects table has the expected columns', function () {
         'name',
         'slug',
         'version',
+        'requires_wp',
+        'requires_php',
         'github_url',
         'package_file',
         'package_external_url',
@@ -68,6 +70,8 @@ test('authenticated users can view projects from the controller', function () {
         'name' => 'Client Child Theme',
         'type' => 'wp_theme_child',
         'version' => '1.4.2',
+        'requires_wp' => '6.7',
+        'requires_php' => '8.2',
         'github_url' => 'https://github.com/example/client-child-theme',
         'package_file' => 'project-packages/client-child-theme/client-child-theme-v1-4-2.zip',
         'package_external_url' => 'https://example.com/downloads/client-child-theme.zip',
@@ -84,6 +88,8 @@ test('authenticated users can view projects from the controller', function () {
             ->where('projects.data.0.name', 'Client Child Theme')
             ->where('projects.data.0.slug', $childProject->slug)
             ->where('projects.data.0.type', 'wp_theme_child')
+            ->where('projects.data.0.requires', '6.7')
+            ->where('projects.data.0.requires_php', '8.2')
             ->where('projects.data.0.parent.id', $parentProject->id)
             ->where('projects.data.0.parent.name', 'Core Theme')
             ->where('projects.data.0.package_file', 'project-packages/client-child-theme/client-child-theme-v1-4-2.zip')
@@ -104,6 +110,8 @@ test('authenticated users can create a project', function () {
             'name' => 'Velocity Addons',
             'slug' => 'Velocity Addons Terbaru',
             'version' => '2.1.0',
+            'requires_wp' => '6.7',
+            'requires_php' => '8.2',
             'github_url' => 'https://github.com/example/velocity-addons',
             'package_external_url' => 'https://downloads.example.com/velocity-addons.zip',
             'description' => 'Plugin utama untuk klien.',
@@ -114,6 +122,8 @@ test('authenticated users can create a project', function () {
         ->assertCreated()
         ->assertJsonPath('data.name', 'Velocity Addons')
         ->assertJsonPath('data.slug', 'velocity-addons-terbaru')
+        ->assertJsonPath('data.requires', '6.7')
+        ->assertJsonPath('data.requires_php', '8.2')
         ->assertJsonPath('data.type', 'wp_plugin')
         ->assertJsonPath('data.parent.id', $parentProject->id)
         ->assertJsonPath('data.parent.name', $parentProject->name);
@@ -121,6 +131,8 @@ test('authenticated users can create a project', function () {
     $this->assertDatabaseHas('projects', [
         'name' => 'Velocity Addons',
         'slug' => 'velocity-addons-terbaru',
+        'requires_wp' => '6.7',
+        'requires_php' => '8.2',
         'type' => 'wp_plugin',
         'parent_id' => $parentProject->id,
         'package_external_url' => 'https://downloads.example.com/velocity-addons.zip',
@@ -160,12 +172,16 @@ test('authenticated users can update a project', function () {
             'type' => 'project_client',
             'parent_id' => $newParent->id,
             'version' => '3.0.0',
+            'requires_wp' => '6.7',
+            'requires_php' => '8.2',
             'package_external_url' => 'https://downloads.example.com/updated-project.zip',
             'package_file' => $replacementPackage,
         ])
         ->assertOk()
         ->assertJsonPath('data.name', 'Updated Project')
         ->assertJsonPath('data.slug', 'updated-project-premium')
+        ->assertJsonPath('data.requires', null)
+        ->assertJsonPath('data.requires_php', null)
         ->assertJsonPath('data.type', 'project_client')
         ->assertJsonPath('data.version', '3.0.0')
         ->assertJsonPath('data.parent.id', $newParent->id);
@@ -174,6 +190,8 @@ test('authenticated users can update a project', function () {
         'id' => $project->id,
         'name' => 'Updated Project',
         'slug' => 'updated-project-premium',
+        'requires_wp' => null,
+        'requires_php' => null,
         'type' => 'project_client',
         'parent_id' => $newParent->id,
         'version' => '3.0.0',
