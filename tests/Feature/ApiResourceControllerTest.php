@@ -3,6 +3,7 @@
 use App\Models\Category;
 use App\Models\License;
 use App\Models\Post;
+use App\Models\Project;
 use App\Models\RequestLog;
 use App\Models\Tag;
 use App\Models\User;
@@ -49,7 +50,7 @@ test('post controller stores a post with category and tag pivots', function () {
 
     expect($post->categories()->pluck('categories.id')->all())->toBe([$category->id])
         ->and($post->tags()->pluck('tags.id')->all())->toBe([$tag->id])
-        ->and($post->image)->toStartWith('post/' . now()->format('y-m') . '/');
+        ->and($post->image)->toStartWith('post/'.now()->format('y-m').'/');
 
     Storage::disk('public')->assertExists($post->image);
 });
@@ -57,7 +58,7 @@ test('post controller stores a post with category and tag pivots', function () {
 test('post controller updates and deletes a post', function () {
     Storage::fake('public');
 
-    $oldImage = 'post/' . now()->format('y-m') . '/old.jpg';
+    $oldImage = 'post/'.now()->format('y-m').'/old.jpg';
     Storage::disk('public')->put($oldImage, 'old image');
 
     $post = Post::factory()->create(['image' => $oldImage]);
@@ -228,4 +229,37 @@ test('request log controller stores updates and deletes a request log', function
 
     $this->deleteJson("/ajax/request-logs/{$requestLog->id}")->assertNoContent();
     $this->assertDatabaseMissing('request_logs', ['id' => $requestLog->id]);
+});
+
+test('public project show returns a project by slug', function () {
+    $parentProject = Project::factory()->create([
+        'name' => 'Core Project',
+        'slug' => 'core-project',
+    ]);
+
+    $project = Project::factory()->for($parentProject, 'parent')->create([
+        'name' => 'Velocity Addons',
+        'slug' => 'velocity-addons',
+        'type' => 'wp_plugin',
+        'version' => '2.3.0',
+        'package_file' => 'project-packages/velocity-addons/velocity-addons-2-3-0.zip',
+    ]);
+
+    $this->getJson("/api/v1/projects/{$project->slug}")
+        ->assertOk()
+        ->assertJsonPath('status', true)
+        ->assertJsonPath('message', 'Success')
+        ->assertJsonPath('data.id', $project->id)
+        ->assertJsonPath('data.name', 'Velocity Addons')
+        ->assertJsonPath('data.slug', 'velocity-addons')
+        ->assertJsonPath('data.type', 'wp_plugin')
+        ->assertJsonPath('data.parent.id', $parentProject->id)
+        ->assertJsonPath('data.parent.name', 'Core Project');
+});
+
+test('public project show returns not found for unknown slug', function () {
+    $this->getJson('/api/v1/projects/missing-project')
+        ->assertNotFound()
+        ->assertJsonPath('status', false)
+        ->assertJsonPath('message', 'Project not found');
 });
