@@ -306,6 +306,9 @@ test('public project show returns not found for unknown slug', function () {
 
 test('public project can be updated by slug with a package upload', function () {
     Carbon::setTestNow('2026-06-20 09:00:00');
+    putenv('RELEASE_WEBHOOK_SECRET=test-webhook-secret');
+    $_ENV['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
+    $_SERVER['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
 
     Storage::fake('public');
 
@@ -330,8 +333,14 @@ test('public project can be updated by slug with a package upload', function () 
 
     $package = UploadedFile::fake()->create('velocity-addons-pro.zip', 240, 'application/zip');
 
-    $this->withHeader('signature', md5(now()->format('dmY')))
-        ->post("/api/v1/project/{$project->slug}", [
+    $signature = hash_hmac(
+        'sha256',
+        Carbon::now('Asia/Jakarta')->format('dmY'),
+        'test-webhook-secret',
+    );
+
+    $this->withHeader('X-Signature', $signature)
+        ->post("/api/v1/release-project/{$project->slug}", [
             'name' => 'Velocity Addons Pro',
             'slug' => 'Velocity Addons Pro',
             'type' => 'wp_plugin',
@@ -378,9 +387,18 @@ test('public project can be updated by slug with a package upload', function () 
 
 test('public project update returns not found for unknown slug', function () {
     Carbon::setTestNow('2026-06-20 09:00:00');
+    putenv('RELEASE_WEBHOOK_SECRET=test-webhook-secret');
+    $_ENV['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
+    $_SERVER['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
 
-    $this->withHeader('signature', md5(now()->format('dmY')))
-        ->post('/api/v1/project/missing-project', [
+    $signature = hash_hmac(
+        'sha256',
+        Carbon::now('Asia/Jakarta')->format('dmY'),
+        'test-webhook-secret',
+    );
+
+    $this->withHeader('X-Signature', $signature)
+        ->post('/api/v1/release-project/missing-project', [
             'name' => 'Missing Project',
         ])
         ->assertNotFound()

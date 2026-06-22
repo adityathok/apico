@@ -95,6 +95,7 @@ class EnsureLicenseKey
             $website->fill([
                 'ip_address' => $request->ip(),
                 'license_key' => $licenseKey !== '' ? $licenseKey : $website->license_key,
+                'status' => $license instanceof License ? 'active' : 'invalid',
                 'wp_version' => $request->input('wp_version', $website->wp_version),
                 'php_version' => $request->input('php_version', $website->php_version),
                 'plugin_version' => $request->input('velocity_addons_version', $website->plugin_version),
