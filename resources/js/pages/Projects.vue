@@ -379,7 +379,7 @@ const openEditModal = (project: Project): void => {
     state.version = project.version ?? '';
     state.requires_wp = project.requires ?? '';
     state.requires_php = project.requires_php ?? '';
-    state.plugin_wp_required = project.plugin_wp_required ?? false;
+    state.plugin_wp_required = Boolean(project.plugin_wp_required);
     state.github_url = project.github_url ?? '';
     state.package_external_url = project.package_external_url ?? '';
     state.description = project.description ?? '';

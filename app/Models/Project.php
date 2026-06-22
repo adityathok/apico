@@ -16,6 +16,18 @@ class Project extends Model
     use HasFactory;
 
     /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'plugin_wp_required' => 'boolean',
+        ];
+    }
+
+    /**
      * @return BelongsTo<Project, $this>
      */
     public function parent(): BelongsTo

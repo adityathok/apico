@@ -101,6 +101,24 @@ test('authenticated users can view projects from the controller', function () {
             ->where('projects.meta.total', 2));
 });
 
+test('wordpress plugin project boolean field is exposed as a real boolean', function () {
+    $user = User::factory()->create();
+    $pluginProject = Project::factory()->create([
+        'name' => 'Boolean Plugin',
+        'slug' => 'boolean-plugin',
+        'type' => 'wp_plugin',
+        'plugin_wp_required' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('projects'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects')
+            ->where('projects.data.0.id', $pluginProject->id)
+            ->where('projects.data.0.plugin_wp_required', true));
+});
+
 test('authenticated users can create a project', function () {
     Storage::fake('public');
 
