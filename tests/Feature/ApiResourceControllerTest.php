@@ -115,6 +115,37 @@ test('category controller stores updates and deletes a category', function () {
     $this->assertDatabaseMissing('categories', ['id' => $category->id]);
 });
 
+test('category controller normalizes slug before saving', function () {
+    $response = $this->postJson('/ajax/categories', [
+        'name' => 'Berita Utama',
+        'slug' => 'Slug Campur Spasi & Simbol',
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('data.slug', 'slug-campur-spasi-simbol');
+
+    $category = Category::where('slug', 'slug-campur-spasi-simbol')->firstOrFail();
+
+    expect($category->name)->toBe('Berita Utama');
+});
+
+test('category controller normalizes slug before updating', function () {
+    $category = Category::factory()->create([
+        'slug' => 'slug-lama',
+    ]);
+
+    $this->patchJson("/ajax/categories/{$category->id}", [
+        'slug' => 'Slug Baru Dengan Spasi',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.slug', 'slug-baru-dengan-spasi');
+
+    $this->assertDatabaseHas('categories', [
+        'id' => $category->id,
+        'slug' => 'slug-baru-dengan-spasi',
+    ]);
+});
+
 test('tag controller stores updates and deletes a tag', function () {
     $post = Post::factory()->create();
 
