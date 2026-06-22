@@ -156,6 +156,33 @@ test('authenticated users can create a project', function () {
     Storage::disk('public')->assertExists($project->package_file);
 });
 
+test('authenticated users can create a project with external package url only', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post('/ajax/projects', [
+            'name' => 'Hosted Package Project',
+            'slug' => 'Hosted Package Project',
+            'type' => 'project_client',
+            'package_external_url' => 'https://downloads.example.com/hosted-package-project.zip',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.name', 'Hosted Package Project')
+        ->assertJsonPath('data.slug', 'hosted-package-project')
+        ->assertJsonPath('data.package_external_url', 'https://downloads.example.com/hosted-package-project.zip')
+        ->assertJsonPath('data.package_file', null);
+
+    $this->assertDatabaseHas('projects', [
+        'name' => 'Hosted Package Project',
+        'slug' => 'hosted-package-project',
+        'type' => 'project_client',
+        'package_external_url' => 'https://downloads.example.com/hosted-package-project.zip',
+        'package_file' => null,
+    ]);
+});
+
 test('authenticated users can update a project', function () {
     Storage::fake('public');
 
@@ -218,6 +245,37 @@ test('authenticated users can update a project', function () {
 
     Storage::disk('public')->assertMissing('project-packages/old-package.zip');
     Storage::disk('public')->assertExists($project->package_file);
+});
+
+test('authenticated users can remove an existing package file', function () {
+    Storage::fake('public');
+
+    $user = User::factory()->create();
+    $project = Project::factory()->create([
+        'name' => 'Packaged Project',
+        'type' => 'project_client',
+        'package_file' => 'project-packages/packaged-project/packaged-project-v1-0-0.zip',
+        'package_external_url' => null,
+    ]);
+    Storage::disk('public')->put($project->package_file, 'existing package');
+
+    $this->actingAs($user)
+        ->patch("/ajax/projects/{$project->id}", [
+            'name' => 'Packaged Project',
+            'slug' => 'packaged-project',
+            'type' => 'project_client',
+            'remove_package_file' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.name', 'Packaged Project')
+        ->assertJsonPath('data.package_file', null)
+        ->assertJsonPath('data.package_file_url', null);
+
+    $project->refresh();
+
+    expect($project->package_file)->toBeNull();
+
+    Storage::disk('public')->assertMissing('project-packages/packaged-project/packaged-project-v1-0-0.zip');
 });
 
 test('project slug is normalized before saving', function () {

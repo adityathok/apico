@@ -103,16 +103,8 @@ const columns: TableColumn<Project>[] = [
         header: 'Project',
     },
     {
-        accessorKey: 'slug',
-        header: 'Slug',
-    },
-    {
         accessorKey: 'type',
         header: 'Type',
-    },
-    {
-        accessorKey: 'parent',
-        header: 'Parent',
     },
     {
         accessorKey: 'version',
@@ -127,8 +119,8 @@ const columns: TableColumn<Project>[] = [
         header: 'Package',
     },
     {
-        accessorKey: 'created_at',
-        header: 'Created',
+        accessorKey: 'updated_at',
+        header: 'Last Updated',
     },
     {
         id: 'actions',
@@ -157,6 +149,7 @@ const formMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
 const packageFile = ref<File | null>(null);
 const packageFileInput = ref<HTMLInputElement | null>(null);
+const removePackageFile = ref(false);
 
 const state = reactive<ProjectFormState>({
     name: '',
@@ -230,7 +223,7 @@ const packageFileLabel = computed(() =>
 const packageFileHint = computed(() =>
     isEditing.value
         ? 'Optional. Upload file baru hanya jika ingin mengganti package lama.'
-        : 'Required. Upload file ZIP package project.',
+        : 'Optional jika Package External URL diisi. Upload file ZIP jika package disimpan lokal.',
 );
 const currentPackageFileUrl = computed(() => {
     if (editingProjectId.value === null) {
@@ -242,6 +235,9 @@ const currentPackageFileUrl = computed(() => {
             (project) => project.id === editingProjectId.value,
         )?.package_file_url ?? null
     );
+});
+const showsCurrentPackageFile = computed(() => {
+    return isEditing.value && currentPackageFileUrl.value !== null && !removePackageFile.value;
 });
 
 const projectTypeOptions = [
@@ -336,10 +332,14 @@ const validate = (formState: Partial<ProjectFormState>): FormError[] => {
         errors.push({ name: 'type', message: 'Type project wajib dipilih.' });
     }
 
-    if (!isEditing.value && !packageFile.value) {
+    if (
+        !isEditing.value &&
+        !packageFile.value &&
+        !formState.package_external_url?.trim()
+    ) {
         errors.push({
             name: 'package_file',
-            message: 'File ZIP package wajib diupload.',
+            message: 'Upload file ZIP atau isi Package External URL.',
         });
     }
 
@@ -359,6 +359,7 @@ const resetForm = (): void => {
     state.type = 'project_internal';
     state.parent_id = noParentValue;
     packageFile.value = null;
+    removePackageFile.value = false;
     if (packageFileInput.value) {
         packageFileInput.value.value = '';
     }
@@ -387,6 +388,7 @@ const openEditModal = (project: Project): void => {
         ? String(project.parent_id)
         : noParentValue;
     packageFile.value = null;
+    removePackageFile.value = false;
     if (packageFileInput.value) {
         packageFileInput.value.value = '';
     }
@@ -463,6 +465,10 @@ const buildPayload = (): FormData => {
         payload.append('package_file', packageFile.value);
     }
 
+    if (removePackageFile.value) {
+        payload.append('remove_package_file', '1');
+    }
+
     return payload;
 };
 
@@ -512,6 +518,22 @@ const handleValidationErrors = (error: unknown): void => {
 const updatePackageFile = (event: Event): void => {
     const target = event.target as HTMLInputElement;
     packageFile.value = target.files?.[0] ?? null;
+    if (packageFile.value) {
+        removePackageFile.value = false;
+    }
+};
+
+const markCurrentPackageForRemoval = (): void => {
+    removePackageFile.value = true;
+    packageFile.value = null;
+
+    if (packageFileInput.value) {
+        packageFileInput.value.value = '';
+    }
+};
+
+const keepCurrentPackageFile = (): void => {
+    removePackageFile.value = false;
 };
 
 const submitProject = async (
@@ -657,10 +679,12 @@ watch(isModalOpen, (open) => {
                         <div class="min-w-0">
                             <p class="truncate font-medium text-highlighted">
                                 {{ row.original.name }}
-                            </p>
-                            <p class="truncate text-xs text-muted">
-                                {{ row.original.description || 'No description' }}
-                            </p>
+                            </p>                            
+                            <UBadge
+                                color="neutral"
+                                variant="subtle"
+                                :label="row.original.slug"
+                            />
                         </div>
                     </template>
 
@@ -699,27 +723,31 @@ watch(isModalOpen, (open) => {
                             v-if="row.original.github_url"
                             :to="row.original.github_url"
                             target="_blank"
-                            class="text-sm"
+                            class="text-sm flex items-center gap-1"
                         >
+                            <UIcon name="i-lucide-github" />
                             Repository
                         </ULink>
                         <span v-else class="text-sm text-muted">-</span>
                     </template>
 
-                    <template #package_file_url-cell="{ row }">
-                        <ULink
+                    <template #package_file_url-cell="{ row }">                       
+                        <UButton
                             v-if="row.original.package_file_url"
+                            type="button"
+                            label="Download"
+                            icon="i-lucide-download"
+                            color="primary"
+                            variant="soft"
                             :to="row.original.package_file_url"
                             target="_blank"
-                            class="text-sm"
-                        >
-                            Download
-                        </ULink>
+                            size="sm"
+                        />
                         <span v-else class="text-sm text-muted">-</span>
                     </template>
 
-                    <template #created_at-cell="{ row }">
-                        {{ formatDate(row.original.created_at) }}
+                    <template #updated_at-cell="{ row }">
+                        {{ formatDate(row.original.updated_at) }}
                     </template>
 
                     <template #actions-cell="{ row }">
@@ -890,13 +918,23 @@ watch(isModalOpen, (open) => {
                         v-if="showsRequiredVersions"
                         class="space-y-4 rounded-xl border border-default bg-muted/30 p-4"
                     >
-                        <div class="space-y-1">
-                            <p class="text-sm font-medium text-default">
-                                WordPress Compatibility
-                            </p>
-                            <p class="text-xs text-muted">
-                                Konfigurasi kebutuhan minimum WordPress untuk project ini.
-                            </p>
+
+                        <div class="flex gap-2 items-center">
+                            <div class="text-blue-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-wordpress" viewBox="0 0 16 16">
+                                    <path d="M12.633 7.653c0-.848-.305-1.435-.566-1.892l-.08-.13c-.317-.51-.594-.958-.594-1.48 0-.63.478-1.218 1.152-1.218q.03 0 .058.003l.031.003A6.84 6.84 0 0 0 8 1.137 6.86 6.86 0 0 0 2.266 4.23c.16.005.313.009.442.009.717 0 1.828-.087 1.828-.087.37-.022.414.521.044.565 0 0-.371.044-.785.065l2.5 7.434 1.5-4.506-1.07-2.929c-.369-.022-.719-.065-.719-.065-.37-.022-.326-.588.043-.566 0 0 1.134.087 1.808.087.718 0 1.83-.087 1.83-.087.37-.022.413.522.043.566 0 0-.372.043-.785.065l2.48 7.377.684-2.287.054-.173c.27-.86.469-1.495.469-2.046zM1.137 8a6.86 6.86 0 0 0 3.868 6.176L1.73 5.206A6.8 6.8 0 0 0 1.137 8"/>
+                                    <path d="M6.061 14.583 8.121 8.6l2.109 5.78q.02.05.049.094a6.85 6.85 0 0 1-4.218.109m7.96-9.876q.046.328.047.706c0 .696-.13 1.479-.522 2.458l-2.096 6.06a6.86 6.86 0 0 0 2.572-9.224z"/>
+                                    <path fill-rule="evenodd" d="M0 8c0-4.411 3.589-8 8-8s8 3.589 8 8-3.59 8-8 8-8-3.589-8-8m.367 0c0 4.209 3.424 7.633 7.633 7.633S15.632 12.209 15.632 8C15.632 3.79 12.208.367 8 .367 3.79.367.367 3.79.367 8"/>
+                                </svg>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-sm font-medium text-default">
+                                    WordPress Compatibility
+                                </p>
+                                <p class="text-xs text-muted">
+                                    Konfigurasi kebutuhan minimum WordPress untuk project ini.
+                                </p>
+                            </div>
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -982,19 +1020,49 @@ watch(isModalOpen, (open) => {
                         >
                             File dipilih: {{ packageFile.name }}
                         </p>
-                        <p
-                            v-else-if="isEditing && currentPackageFileUrl"
-                            class="mt-2 text-xs text-muted"
-                        >
-                            File saat ini:
-                            <a
-                                :href="currentPackageFileUrl"
+
+
+                        <div
+                            v-if="showsCurrentPackageFile"
+                            class="mt-3 flex items-center gap-2"
+                        >                            
+                            <UButton
+                                type="button"
+                                label="Download current package"
+                                icon="i-lucide-download"
+                                color="success"
+                                variant="soft"
+                                :to="currentPackageFileUrl"
                                 target="_blank"
-                                class="underline"
-                            >
-                                Download current package
-                            </a>
-                        </p>
+                            />
+                            <UButton
+                                type="button"
+                                label="Hapus file ZIP"
+                                icon="i-lucide-trash"
+                                color="error"
+                                variant="soft"
+                                :disabled="isSaving"
+                                @click="markCurrentPackageForRemoval"
+                            />
+                        </div>
+                        
+                        <div
+                            v-else-if="isEditing && removePackageFile"
+                            class="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-error/30 bg-error/10 px-3 py-2"
+                        >
+                            <span class="text-xs text-error">
+                                File ZIP saat ini akan dihapus ketika project disimpan.
+                            </span>
+                            <UButton
+                                type="button"
+                                label="Batal hapus"
+                                color="neutral"
+                                variant="ghost"
+                                size="xs"
+                                :disabled="isSaving"
+                                @click="keepCurrentPackageFile"
+                            />
+                        </div>
                     </UFormField>
 
                     <UFormField

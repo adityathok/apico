@@ -43,6 +43,7 @@ class ProjectController extends Controller
         $validated['slug'] = Str::slug($validated['slug']);
         $validated = $this->normalizeRequiredVersions($validated);
         $validated['package_file'] = $this->storePackageFile($request);
+        unset($validated['remove_package_file']);
 
         $project = Project::create($validated);
 
@@ -63,6 +64,7 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project): ProjectResource
     {
         $validated = $request->validate($this->rules($project, true));
+        $shouldRemovePackageFile = $request->boolean('remove_package_file');
 
         if (array_key_exists('slug', $validated)) {
             $validated['slug'] = Str::slug($validated['slug']);
@@ -73,8 +75,12 @@ class ProjectController extends Controller
         if ($request->hasFile('package_file')) {
             $this->deletePackageFile($project);
             $validated['package_file'] = $this->storePackageFile($request);
+        } elseif ($shouldRemovePackageFile) {
+            $this->deletePackageFile($project);
+            $validated['package_file'] = null;
         }
 
+        unset($validated['remove_package_file']);
         $project->update($validated);
 
         return ProjectResource::make($project->load('parent:id,name'));
@@ -124,6 +130,7 @@ class ProjectController extends Controller
             'plugin_wp_required' => ['nullable', 'boolean'],
             'github_url' => ['nullable', 'url', 'max:255'],
             'package_external_url' => ['nullable', 'url', 'max:255'],
+            'remove_package_file' => ['nullable', 'boolean'],
             'description' => ['nullable', 'string'],
             'type' => array_values(array_filter([
                 $isUpdate ? 'sometimes' : null,
@@ -131,7 +138,7 @@ class ProjectController extends Controller
                 Rule::in($supportedTypes),
             ])),
             'package_file' => array_values(array_filter([
-                $isUpdate ? 'nullable' : 'required',
+                $isUpdate ? 'nullable' : 'required_without:package_external_url',
                 'file',
                 'mimes:zip',
                 'max:51200',
@@ -180,8 +187,12 @@ class ProjectController extends Controller
         return in_array($type, ['wp_theme', 'wp_plugin', 'wp_theme_child'], true);
     }
 
-    private function storePackageFile(Request $request): string
+    private function storePackageFile(Request $request): ?string
     {
+        if (! $request->hasFile('package_file')) {
+            return null;
+        }
+
         $name = $request->input('name');
         $version = $request->input('version');
 
