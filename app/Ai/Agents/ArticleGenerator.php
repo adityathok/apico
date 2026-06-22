@@ -67,6 +67,10 @@ class ArticleGenerator implements Agent, Conversational, HasStructuredOutput, Ha
                 ->items($schema->string()) // Memastikan isi array adalah string data
                 ->description('Daftar kata kunci atau tag yang relevan dengan isi artikel. Maksimal 5 kata kunci pendek.')
                 ->required(),
+
+            'image_keyword' => $schema->string()
+                ->description('Keyword untuk gambar artikel. Maksimal 1 kata kunci pendek dalam bahasa Inggris.')
+                ->required(),
         ];
     }
 }
