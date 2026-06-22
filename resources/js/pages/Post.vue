@@ -783,6 +783,12 @@ onMounted(async () => {
                     @click="openGenerateModal"
                 />
                 <UButton
+                    :to="post()"
+                    icon="i-lucide-plus"
+                    color="info"
+                    label="Add"
+                />
+                <UButton
                     :to="posts()"
                     icon="i-lucide-arrow-left"
                     color="neutral"
