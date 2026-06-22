@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\RequestLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,14 @@ test('github webhook route requires an x-signature header', function () {
         ->assertUnauthorized()
         ->assertJsonPath('status', false)
         ->assertJsonPath('message', 'X-Signature header is required.');
+
+    $requestLog = RequestLog::sole();
+
+    expect($requestLog->route)->toBe('/api/github/webhook/ping')
+        ->and($requestLog->method)->toBe('POST')
+        ->and($requestLog->status)->toBe(401)
+        ->and($requestLog->website_id)->toBeNull()
+        ->and($requestLog->license_id)->toBeNull();
 });
 
 test('github webhook route rejects an invalid x-signature header', function () {
@@ -29,6 +38,14 @@ test('github webhook route rejects an invalid x-signature header', function () {
         ->assertForbidden()
         ->assertJsonPath('status', false)
         ->assertJsonPath('message', 'X-Signature header is invalid.');
+
+    $requestLog = RequestLog::sole();
+
+    expect($requestLog->route)->toBe('/api/github/webhook/ping')
+        ->and($requestLog->method)->toBe('POST')
+        ->and($requestLog->status)->toBe(403)
+        ->and($requestLog->website_id)->toBeNull()
+        ->and($requestLog->license_id)->toBeNull();
 
     Carbon::setTestNow();
 });
@@ -47,6 +64,40 @@ test('github webhook route accepts a valid x-signature header', function () {
         ->assertOk()
         ->assertJsonPath('status', true)
         ->assertJsonPath('message', 'OK');
+
+    $requestLog = RequestLog::sole();
+
+    expect($requestLog->route)->toBe('/api/github/webhook/ping')
+        ->and($requestLog->method)->toBe('POST')
+        ->and($requestLog->status)->toBe(200)
+        ->and($requestLog->website_id)->toBeNull()
+        ->and($requestLog->license_id)->toBeNull();
+
+    Carbon::setTestNow();
+});
+
+test('github webhook route logs downstream http exceptions', function () {
+    Carbon::setTestNow('2026-06-22 12:00:00');
+
+    Route::post('/api/github/webhook/fail', fn () => abort(409))->middleware('github.signature');
+
+    $signature = hash_hmac(
+        'sha256',
+        Carbon::now('Asia/Jakarta')->format('dmY'),
+        'test-webhook-secret',
+    );
+
+    $this->withHeader('X-Signature', $signature)
+        ->postJson('/api/github/webhook/fail')
+        ->assertStatus(409);
+
+    $requestLog = RequestLog::sole();
+
+    expect($requestLog->route)->toBe('/api/github/webhook/fail')
+        ->and($requestLog->method)->toBe('POST')
+        ->and($requestLog->status)->toBe(409)
+        ->and($requestLog->website_id)->toBeNull()
+        ->and($requestLog->license_id)->toBeNull();
 
     Carbon::setTestNow();
 });
