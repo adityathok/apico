@@ -34,6 +34,10 @@ type CollectionResponse<T> = {
     data: T[];
 };
 
+type PaginatedCollectionResponse<T> = CollectionResponse<T> & {
+    meta: PaginationMeta;
+};
+
 type SelectOption = {
     label: string;
     value: number;
@@ -81,6 +85,18 @@ type RecommendedImage = {
 
 type RecommendedImageSearchState = {
     query: string;
+    orientation: RecommendedImageOrientation;
+};
+
+type RecommendedImageOrientation = 'landscape' | 'portrait' | 'squarish';
+
+type PaginationMeta = {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
 };
 
 defineOptions({
@@ -135,12 +151,15 @@ const isSearchingRecommendedImages = ref(false);
 const isApplyingRecommendedImage = ref(false);
 const recommendedImages = ref<RecommendedImage[]>([]);
 const recommendedImagesError = ref<string | null>(null);
+const recommendedImagesMeta = ref<PaginationMeta | null>(null);
+const recommendedImagesPage = ref(1);
 const selectedRecommendedImageId = ref<string | null>(null);
 const topicState = reactive<TopicFormState>({
     topic: '',
 });
 const recommendedImageSearchState = reactive<RecommendedImageSearchState>({
     query: '',
+    orientation: 'landscape',
 });
 
 const title = computed(() => (isEdit.value ? 'Edit Post' : 'Create Post'));
@@ -149,6 +168,14 @@ const submitLabel = computed(() =>
 );
 
 const categoryItems = computed(() => categories.value);
+const recommendedImageOrientationOptions = [
+    { label: 'Landscape', value: 'landscape' },
+    { label: 'Portrait', value: 'portrait' },
+    { label: 'Squarish', value: 'squarish' },
+] satisfies Array<{
+    label: string;
+    value: RecommendedImageOrientation;
+}>;
 const editorToolbarItems: EditorToolbarItem[][] = [
     [
         {
@@ -356,6 +383,20 @@ const aiFieldError = (name: string): string | undefined => {
     return aiServerErrors.value[name];
 };
 
+const recommendedImagesPaginationSummary = computed(() => {
+    if (!recommendedImagesMeta.value || recommendedImagesMeta.value.total === 0) {
+        return '0 gambar';
+    }
+
+    const { from, to, total } = recommendedImagesMeta.value;
+
+    if (from === null || to === null) {
+        return `${total} gambar`;
+    }
+
+    return `${from}-${to} dari ${total} gambar`;
+});
+
 const resetForm = (): void => {
     state.title = '';
     state.slug = '';
@@ -383,6 +424,8 @@ const resetAiGenerator = (): void => {
 const resetRecommendedImages = (): void => {
     recommendedImages.value = [];
     recommendedImagesError.value = null;
+    recommendedImagesMeta.value = null;
+    recommendedImagesPage.value = 1;
     selectedRecommendedImageId.value = null;
 };
 
@@ -685,6 +728,7 @@ const closeGenerateModal = (): void => {
 const openRecommendedImagesModal = async (): Promise<void> => {
     resetRecommendedImages();
     recommendedImageSearchState.query = state.title.trim() || state.slug.trim();
+    recommendedImageSearchState.orientation = 'landscape';
     isImageRecommendedModalOpen.value = true;
 
     if (!recommendedImageSearchState.query) {
@@ -745,11 +789,12 @@ const useGeneratedArticle = (): void => {
     resetAiGenerator();
 };
 
-const searchRecommendedImages = async (): Promise<void> => {
+const searchRecommendedImages = async (page = 1): Promise<void> => {
     const query = recommendedImageSearchState.query.trim();
 
     if (!query) {
         recommendedImages.value = [];
+        recommendedImagesMeta.value = null;
         recommendedImagesError.value = 'Masukkan kata kunci untuk mencari gambar.';
 
         return;
@@ -757,19 +802,25 @@ const searchRecommendedImages = async (): Promise<void> => {
 
     isSearchingRecommendedImages.value = true;
     recommendedImagesError.value = null;
+    recommendedImagesPage.value = page;
     selectedRecommendedImageId.value = null;
 
     try {
-        const response = await axios.get<CollectionResponse<RecommendedImage>>(
+        const response = await axios.get<PaginatedCollectionResponse<RecommendedImage>>(
             '/ajax/posts/recommended-images',
             {
                 params: {
                     query,
+                    page,
+                    per_page: 12,
+                    orientation: recommendedImageSearchState.orientation,
                 },
             },
         );
 
         recommendedImages.value = response.data.data;
+        recommendedImagesMeta.value = response.data.meta;
+        recommendedImagesPage.value = response.data.meta.current_page;
 
         if (recommendedImages.value.length === 0) {
             recommendedImagesError.value =
@@ -788,6 +839,17 @@ const searchRecommendedImages = async (): Promise<void> => {
     } finally {
         isSearchingRecommendedImages.value = false;
     }
+};
+
+const changeRecommendedImagesPage = async (page: number): Promise<void> => {
+    if (
+        isSearchingRecommendedImages.value ||
+        page === recommendedImagesMeta.value?.current_page
+    ) {
+        return;
+    }
+
+    await searchRecommendedImages(page);
 };
 
 const selectRecommendedImage = async (
@@ -1340,14 +1402,14 @@ onMounted(async () => {
                     :state="recommendedImageSearchState"
                     :validate="validateRecommendedImageSearch"
                     class="space-y-4"
-                    @submit="searchRecommendedImages"
+                    @submit="searchRecommendedImages(1)"
                 >
-                    <UFormField
-                        name="query"
-                        label="Keyword"
-                        required
-                    >
-                        <div class="flex flex-col gap-3 sm:flex-row">
+                    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+                        <UFormField
+                            name="query"
+                            label="Keyword"
+                            required
+                        >
                             <UInput
                                 v-model="recommendedImageSearchState.query"
                                 placeholder="Contoh: modern office, laravel coding, blog cover"
@@ -1357,15 +1419,36 @@ onMounted(async () => {
                                 "
                                 class="w-full"
                             />
+                        </UFormField>
 
-                            <UButton
-                                type="submit"
-                                icon="i-lucide-search"
-                                label="Search"
-                                :loading="isSearchingRecommendedImages"
+                        <UFormField
+                            name="orientation"
+                            label="Orientation"
+                        >
+                            <USelect
+                                v-model="recommendedImageSearchState.orientation"
+                                :items="recommendedImageOrientationOptions"
+                                :disabled="
+                                    isSearchingRecommendedImages ||
+                                    isApplyingRecommendedImage
+                                "
+                                class="w-full"
                             />
-                        </div>
-                    </UFormField>
+                        </UFormField>
+                    </div>
+
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-sm text-muted">
+                            {{ recommendedImagesPaginationSummary }}
+                        </p>
+
+                        <UButton
+                            type="submit"
+                            icon="i-lucide-search"
+                            label="Search"
+                            :loading="isSearchingRecommendedImages"
+                        />
+                    </div>
                 </UForm>
 
                 <div
@@ -1429,6 +1512,26 @@ onMounted(async () => {
                             />
                         </div>
                     </div>
+                </div>
+
+                <div
+                    v-if="recommendedImagesMeta && recommendedImagesMeta.total > recommendedImagesMeta.per_page"
+                    class="mt-6 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p class="text-sm text-muted">
+                        {{ recommendedImagesPaginationSummary }}
+                    </p>
+
+                    <UPagination
+                        :page="recommendedImagesPage"
+                        :total="recommendedImagesMeta.total"
+                        :items-per-page="recommendedImagesMeta.per_page"
+                        :disabled="
+                            isSearchingRecommendedImages ||
+                            isApplyingRecommendedImage
+                        "
+                        @update:page="changeRecommendedImagesPage"
+                    />
                 </div>
             </template>
 

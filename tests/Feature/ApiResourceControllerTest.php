@@ -95,8 +95,10 @@ test('post controller returns recommended unsplash images', function () {
     $unsplashService = Mockery::mock(UnsplashService::class);
     $unsplashService->shouldReceive('searchPhotos')
         ->once()
-        ->with('laravel api', 1, 12)
+        ->with('laravel api', 2, 9, 'portrait')
         ->andReturn([
+            'total' => 18,
+            'total_pages' => 2,
             'results' => [
                 [
                     'id' => 'photo-1',
@@ -114,13 +116,19 @@ test('post controller returns recommended unsplash images', function () {
 
     $this->app->instance(UnsplashService::class, $unsplashService);
 
-    $this->getJson('/ajax/posts/recommended-images?query=laravel%20api')
+    $this->getJson('/ajax/posts/recommended-images?query=laravel%20api&page=2&per_page=9&orientation=portrait')
         ->assertOk()
         ->assertJsonPath('data.0.id', 'photo-1')
         ->assertJsonPath('data.0.description', 'Laravel workspace')
         ->assertJsonPath('data.0.thumb_url', 'https://images.unsplash.com/photo-1-thumb')
         ->assertJsonPath('data.0.regular_url', 'https://images.unsplash.com/photo-1-regular')
-        ->assertJsonPath('data.0.author_name', 'Taylor');
+        ->assertJsonPath('data.0.author_name', 'Taylor')
+        ->assertJsonPath('meta.current_page', 2)
+        ->assertJsonPath('meta.last_page', 2)
+        ->assertJsonPath('meta.per_page', 9)
+        ->assertJsonPath('meta.total', 18)
+        ->assertJsonPath('meta.from', 10)
+        ->assertJsonPath('meta.to', 10);
 });
 
 test('post controller returns selected unsplash image as a downloadable file', function () {

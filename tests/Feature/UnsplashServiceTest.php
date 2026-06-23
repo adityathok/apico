@@ -21,7 +21,7 @@ test('unsplash service searches photos using the configured api credentials', fu
         ]),
     ]);
 
-    $result = app(UnsplashService::class)->searchPhotos('nature', 2, 15);
+    $result = app(UnsplashService::class)->searchPhotos('nature', 2, 15, 'portrait');
 
     expect($result)
         ->toBeArray()
@@ -29,7 +29,7 @@ test('unsplash service searches photos using the configured api credentials', fu
         ->and($result['results'][0]['id'])->toBe('photo-1');
 
     Http::assertSent(function (Request $request): bool {
-        return $request->url() === 'https://api.unsplash.com/search/photos?query=nature&page=2&per_page=15'
+        return $request->url() === 'https://api.unsplash.com/search/photos?query=nature&page=2&per_page=15&orientation=portrait'
             && $request->hasHeader('Authorization', 'Client-ID test-unsplash-key')
             && $request->hasHeader('Accept', 'application/json');
     });

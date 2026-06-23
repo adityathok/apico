@@ -92,13 +92,20 @@ class PostController extends Controller
     {
         $validated = $request->validate([
             'query' => ['required', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'orientation' => ['nullable', Rule::in(['landscape', 'portrait', 'squarish'])],
         ]);
+
+        $currentPage = (int) ($validated['page'] ?? 1);
+        $perPage = (int) ($validated['per_page'] ?? 12);
+        $orientation = $validated['orientation'] ?? 'landscape';
 
         $result = $unsplashService->searchPhotos(
             $validated['query'],
-            1,
-            $validated['per_page'] ?? 12,
+            $currentPage,
+            $perPage,
+            $orientation,
         );
 
         $images = collect($result['results'] ?? [])
@@ -112,8 +119,21 @@ class PostController extends Controller
             ->filter(fn (array $photo): bool => filled($photo['id']) && filled($photo['thumb_url']) && filled($photo['regular_url']))
             ->values();
 
+        $total = max((int) ($result['total'] ?? 0), 0);
+        $lastPage = max((int) ($result['total_pages'] ?? 1), 1);
+        $from = $images->isEmpty() ? null : (($currentPage - 1) * $perPage) + 1;
+        $to = $images->isEmpty() ? null : $from + $images->count() - 1;
+
         return response()->json([
             'data' => $images,
+            'meta' => [
+                'current_page' => $currentPage,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+                'total' => $total,
+                'from' => $from,
+                'to' => $to,
+            ],
         ]);
     }
 
