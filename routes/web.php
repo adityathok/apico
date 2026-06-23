@@ -7,6 +7,7 @@ use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RequestLogController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebsiteController;
@@ -26,6 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('admin/tags', 'Tags')->name('tags');
     Route::inertia('admin/licenses', 'Licenses')->name('licenses');
     Route::inertia('admin/websites', 'Websites')->name('websites');
+    Route::inertia('admin/servers', 'Servers')->name('servers');
     // Route::inertia('admin/requestlogs', 'RequestLogs')->name('requestlogs');
 
     Route::get('admin/requestlogs', [RequestLogController::class, 'index'])->name('requestlogsIndex');
@@ -43,6 +45,7 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
         'tags' => TagController::class,
         'licenses' => LicenseController::class,
         'websites' => WebsiteController::class,
+        'servers' => ServerController::class,
         'request-logs' => RequestLogController::class,
     ]);
 

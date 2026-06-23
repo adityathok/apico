@@ -21,6 +21,7 @@ import {
     categories,
     tags,
     licenses,
+    servers,
     websites,
     requestlogsIndex,
 } from '@/routes';
@@ -34,8 +35,9 @@ import {
     Folder,
     Tag,
     Key,
+    Server,
     Globe,
-    ScrollText
+    ScrollText,
 } from 'lucide-vue-next';
 import type { NavItem } from '@/types';
 
@@ -79,6 +81,11 @@ const mainNavItems: NavItem[] = [
         title: 'Websites',
         href: websites(),
         icon: Globe,
+    },
+    {
+        title: 'Servers',
+        href: servers(),
+        icon: Server,
     },
     {
         title: 'Request Logs',
