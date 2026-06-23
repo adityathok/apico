@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PostSeeder::class);
         $this->call(LicenseSeeder::class);
         $this->call(WebsiteSeeder::class);
+        $this->call(ServerSeeder::class);
         $this->call(RequestLogSeeder::class);
     }
 }
