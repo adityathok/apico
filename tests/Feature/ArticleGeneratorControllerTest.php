@@ -1,7 +1,7 @@
 <?php
 
-use App\Ai\Agents\ArticleGenerator;
 use App\Models\User;
+use App\Services\AiProviderService;
 
 test('authenticated users can generate article content from a topic', function () {
     $user = User::factory()->create();
@@ -10,9 +10,16 @@ test('authenticated users can generate article content from a topic', function (
         'content' => '<p>Isi artikel pengujian.</p>',
         'excerpt' => 'Ringkasan artikel pengujian.',
         'tags' => ['laravel', 'testing'],
+        'image_keyword' => 'testing',
     ];
 
-    ArticleGenerator::fake([$expectedArticle]);
+    $service = Mockery::mock(AiProviderService::class);
+    $service->shouldReceive('article_generator')
+        ->once()
+        ->with('Laravel testing')
+        ->andReturn($expectedArticle);
+
+    app()->instance(AiProviderService::class, $service);
 
     $this->actingAs($user)
         ->withoutMiddleware()
@@ -23,10 +30,6 @@ test('authenticated users can generate article content from a topic', function (
         ->assertJson([
             'data' => $expectedArticle,
         ]);
-
-    ArticleGenerator::assertPrompted(
-        'Buatkan artikel menarik tentang: Laravel testing',
-    );
 });
 
 test('article generator validates the topic field', function () {
