@@ -352,7 +352,7 @@ const topCategoryBarWidth = (total: number): string => {
                                 class="h-3 overflow-hidden rounded-full bg-muted"
                             >
                                 <div
-                                    class="h-full rounded-full bg-[var(--color-chart-2)] transition-all duration-500"
+                                    class="h-full rounded-full `bg-(--color-chart-2) transition-all duration-500"
                                     :style="{
                                         width: topCategoryBarWidth(item.total),
                                     }"
