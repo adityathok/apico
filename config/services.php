@@ -40,4 +40,10 @@ return [
         'access_key' => env('UNSPLASH_ACCESS_KEY'),
     ],
 
+    'ai_provider' => [
+        'url' => env('AI_PROVIDER_URL', 'https://free.wsd.my.id/v1'),
+        'key' => env('AI_PROVIDER_API_KEY'),
+        'model' => env('AI_PROVIDER_MODEL', 'free.wsd'),
+    ],
+
 ];
