@@ -22,31 +22,26 @@ class AiProviderService
     public function article_generator(string $topic, bool $stream = false): array
     {
         // 1. Kirim POST request ke API Anda
-        $response = Http::baseUrl((string) config('services.ai_provider.url'))
-            ->acceptJson()
-            ->withToken((string) config('services.ai_provider.key'))
-            ->connectTimeout(15)
-            ->timeout(180)
-            ->retry(2, 1000)
-            ->post('/chat/completions', [
-                'model' => (string) config('services.ai_provider.model'),
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => $this->system_prompt(),
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => 'Buatkan artikel menarik tentang: ' . $topic,
-                    ],
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . config('services.ai_provider.key'),
+            'Content-Type' => 'application/json',
+        ])->post(config('services.ai_provider.url') . '/chat/completions', [
+            'model' => config('services.ai_provider.model'),
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $this->system_prompt(),
                 ],
-                'response_format' => [
-                    'type' => 'json_object',
-                ],
-                'stream' => $stream,
-            ])
-            ->throw()
-            ->json();
+                [
+                    'role' => 'user',
+                    'content' => 'Buatkan artikel menarik tentang: ' . $topic,
+                ]
+            ],
+            'stream' => $stream,
+            'response_format' => [
+                'type' => 'json_object'
+            ],
+        ]);
 
         // 2. Cek apakah request ke API sukses
         if ($response->successful()) {
