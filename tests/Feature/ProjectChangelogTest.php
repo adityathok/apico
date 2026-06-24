@@ -144,3 +144,22 @@ test('authenticated users can update and delete a project changelog', function (
         'id' => $projectChangelog->id,
     ]);
 });
+
+test('public project changelog page renders changelog entries', function () {
+    $project = Project::factory()->create([
+        'name' => 'Velocity Theme',
+        'slug' => 'velocity-theme',
+        'version' => '2.3.0',
+        'description' => 'Primary WordPress theme package.',
+    ]);
+    ProjectChangelog::factory()->for($project)->create([
+        'project_version' => '2.3.0',
+        'changelog_content' => 'Improved homepage sections and fixed mobile menu styling.',
+    ]);
+
+    $this->get(route('project.changelog', ['project_slug' => $project->slug]))
+        ->assertOk()
+        ->assertSee('Velocity Theme')
+        ->assertSee('Version 2.3.0')
+        ->assertSee('Improved homepage sections and fixed mobile menu styling.');
+});

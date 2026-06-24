@@ -17,6 +17,8 @@
 </head>
 
 <body class="bg-default font-sans antialiased text-default">
+    @yield('content')
+
     @stack('scripts')
 </body>
 
