@@ -66,6 +66,26 @@ test('authenticated users can view project changelogs from the controller', func
         ->assertJsonPath('meta.total', 1);
 });
 
+test('authenticated users can filter project changelogs by project', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create();
+    $otherProject = Project::factory()->create();
+    $projectChangelog = ProjectChangelog::factory()->for($project)->create([
+        'project_version' => '2.2.0',
+    ]);
+    ProjectChangelog::factory()->for($otherProject)->create([
+        'project_version' => '9.9.9',
+    ]);
+
+    $this->actingAs($user)
+        ->get("/ajax/project-changelogs?project_id={$project->id}")
+        ->assertOk()
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.id', $projectChangelog->id)
+        ->assertJsonPath('data.0.project_id', $project->id)
+        ->assertJsonMissingPath('data.1');
+});
+
 test('authenticated users can create a project changelog', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create();

@@ -16,11 +16,20 @@ class ProjectChangelogController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
+        $validated = request()->validate([
+            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
         return ProjectChangelogResource::collection(
             ProjectChangelog::query()
+                ->when(
+                    $validated['project_id'] ?? null,
+                    fn ($query, int $projectId) => $query->where('project_id', $projectId),
+                )
                 ->with('project:id,name,slug')
                 ->latest()
-                ->paginate(),
+                ->paginate($validated['per_page'] ?? 15),
         );
     }
 

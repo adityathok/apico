@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import type { FormError, FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, reactive, ref, watch } from 'vue';
+import ProjectChangelogs from '@/components/ProjectChangelogs.vue';
 import { projects as projectsPage } from '@/routes';
 
 type ProjectType =
@@ -143,8 +144,10 @@ const search = ref('');
 const currentPage = ref(props.projects.meta.current_page);
 const isLoading = ref(false);
 const isModalOpen = ref(false);
+const isChangelogModalOpen = ref(false);
 const isSaving = ref(false);
 const editingProjectId = ref<number | null>(null);
+const selectedChangelogProject = ref<Project | null>(null);
 const formMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
 const packageFile = ref<File | null>(null);
@@ -407,6 +410,16 @@ const closeModal = (): void => {
     resetForm();
 };
 
+const openChangelogModal = (project: Project): void => {
+    selectedChangelogProject.value = project;
+    isChangelogModalOpen.value = true;
+};
+
+const closeChangelogModal = (): void => {
+    isChangelogModalOpen.value = false;
+    selectedChangelogProject.value = null;
+};
+
 const nullableTrimmed = (value: string): string | null => {
     const trimmedValue = value.trim();
 
@@ -620,6 +633,12 @@ watch(isModalOpen, (open) => {
         resetForm();
     }
 });
+
+watch(isChangelogModalOpen, (open) => {
+    if (!open) {
+        selectedChangelogProject.value = null;
+    }
+});
 </script>
 
 <template>
@@ -752,6 +771,14 @@ watch(isModalOpen, (open) => {
 
                     <template #actions-cell="{ row }">
                         <div class="flex justify-end gap-1">
+                            <UButton
+                                icon="i-lucide-scroll-text"
+                                color="primary"
+                                variant="ghost"
+                                aria-label="Manage project changelogs"
+                                :disabled="isLoading || isSaving"
+                                @click="openChangelogModal(row.original)"
+                            />
                             <UButton
                                 icon="i-lucide-pencil"
                                 color="neutral"
@@ -1097,6 +1124,39 @@ watch(isModalOpen, (open) => {
                     icon="i-lucide-save"
                     :label="submitLabel"
                     :loading="isSaving"
+                />
+            </template>
+        </UModal>
+
+        <UModal
+            v-model:open="isChangelogModalOpen"
+            :title="
+                selectedChangelogProject
+                    ? `Changelogs: ${selectedChangelogProject.name}`
+                    : 'Project Changelogs'
+            "
+            :description="
+                selectedChangelogProject
+                    ? `Kelola changelog untuk project ${selectedChangelogProject.slug}.`
+                    : 'Kelola changelog project.'
+            "
+            :ui="{
+                content: 'sm:max-w-5xl',
+            }"
+        >
+            <template #body>
+                <ProjectChangelogs
+                    v-if="selectedChangelogProject"
+                    :id_project="selectedChangelogProject.id"
+                />
+            </template>
+
+            <template #footer>
+                <UButton
+                    label="Tutup"
+                    color="neutral"
+                    variant="outline"
+                    @click="closeChangelogModal"
                 />
             </template>
         </UModal>
