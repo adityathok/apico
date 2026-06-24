@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\TgmPluginController as ApiV1TgmPluginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\ProjectChangelogController;
 use App\Http\Controllers\RequestLogController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\WebsiteController;
@@ -24,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
         'tags' => TagController::class,
         'licenses' => LicenseController::class,
         'websites' => WebsiteController::class,
+        'project-changelogs' => ProjectChangelogController::class,
         'request-logs' => RequestLogController::class,
     ]);
 });

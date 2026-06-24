@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\ProjectChangelogController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RequestLogController;
 use App\Http\Controllers\ServerController;
@@ -40,6 +41,7 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::apiResources([
         'posts' => PostController::class,
         'projects' => ProjectController::class,
+        'project-changelogs' => ProjectChangelogController::class,
         'users' => UserController::class,
         'categories' => CategoryController::class,
         'tags' => TagController::class,
