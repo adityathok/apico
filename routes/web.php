@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'Welcome')->name('home');
 Route::get('posts', [PostController::class, 'publicIndex'])->name('frontend.posts');
 Route::get('read/{slug}', [PostController::class, 'read'])->name('read');
+Route::get('project/changelog/{project_slug}', [ProjectChangelogController::class, 'publicChangelogIndex'])->name('project.changelog');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -55,4 +56,4 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::post('article-generator-by-agent', [ArticleGeneratorController::class, 'generate_by_agent']);
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';
