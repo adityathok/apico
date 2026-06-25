@@ -8,18 +8,18 @@ error_reporting(isset($_GET['debug']) ? E_ALL : 0);
 ini_set('display_errors', isset($_GET['debug']) ? '1' : '0');
 
 $basePathCandidates = [
-    __DIR__.'/../..',
-    __DIR__.'/../../laravel',
-    __DIR__.'/../laravel',
-    __DIR__.'/..',
+    __DIR__ . '/../..',
+    __DIR__ . '/../../laravel',
+    __DIR__ . '/../laravel',
+    __DIR__ . '/..',
 ];
 $basePathChecks = [];
 $basePath = false;
 
 foreach ($basePathCandidates as $candidate) {
     $realPath = realpath($candidate);
-    $hasArtisan = $realPath && file_exists($realPath.'/artisan');
-    $basePathChecks[] = ($realPath ?: $candidate).' | artisan: '.($hasArtisan ? 'yes' : 'no');
+    $hasArtisan = $realPath && file_exists($realPath . '/artisan');
+    $basePathChecks[] = ($realPath ?: $candidate) . ' | artisan: ' . ($hasArtisan ? 'yes' : 'no');
 
     if ($hasArtisan) {
         $basePath = $realPath;
@@ -27,7 +27,7 @@ foreach ($basePathCandidates as $candidate) {
     }
 }
 
-if (! $basePath || ! file_exists($basePath.'/artisan')) {
+if (! $basePath || ! file_exists($basePath . '/artisan')) {
     http_response_code(500);
     exit('Root Laravel tidak ditemukan.');
 }
@@ -39,15 +39,15 @@ if ($incomingRoot === '') {
     $incomingRoot = realpath($incomingRoot) ?: $incomingRoot;
 }
 $publicRoot = realpath(dirname(__DIR__)) ?: dirname(__DIR__);
-$envPath = $basePath.'/.env';
-$lockPath = $basePath.'/storage/installer.lock';
+$envPath = $basePath . '/.env';
+$lockPath = $basePath . '/storage/installer.lock';
 $debugLog = [
-    'install_dir: '.__DIR__,
-    'incoming_root: '.$incomingRoot,
-    'public_root: '.$publicRoot,
-    'base_path: '.$basePath,
-    'env_path: '.$envPath.' | exists: '.(file_exists($envPath) ? 'yes' : 'no'),
-    'lock_path: '.$lockPath.' | exists: '.(file_exists($lockPath) ? 'yes' : 'no'),
+    'install_dir: ' . __DIR__,
+    'incoming_root: ' . $incomingRoot,
+    'public_root: ' . $publicRoot,
+    'base_path: ' . $basePath,
+    'env_path: ' . $envPath . ' | exists: ' . (file_exists($envPath) ? 'yes' : 'no'),
+    'lock_path: ' . $lockPath . ' | exists: ' . (file_exists($lockPath) ? 'yes' : 'no'),
     'base_path_checks:',
     ...$basePathChecks,
 ];
@@ -64,7 +64,7 @@ function envValue(string $value): string
     }
 
     if (preg_match('/[\s#"\'\\]/', $value)) {
-        return '"'.str_replace('"', '\\"', $value).'"';
+        return '"' . str_replace('"', '\\"', $value) . '"';
     }
 
     return $value;
@@ -72,20 +72,20 @@ function envValue(string $value): string
 
 function setEnv(string $content, string $key, string $value): string
 {
-    $line = $key.'='.envValue($value);
-    $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
+    $line = $key . '=' . envValue($value);
+    $pattern = '/^' . preg_quote($key, '/') . '=.*$/m';
 
     if (preg_match($pattern, $content)) {
         return preg_replace($pattern, $line, $content);
     }
 
-    return rtrim($content, "\r\n")."\n".$line."\n";
+    return rtrim($content, "\r\n") . "\n" . $line . "\n";
 }
 
 function phpBinary(): string
 {
     foreach (['php', '/opt/cpanel/ea-php83/root/usr/bin/php', '/opt/cpanel/ea-php82/root/usr/bin/php', '/usr/local/bin/php', '/usr/bin/php'] as $binary) {
-        $output = @shell_exec($binary.' --version 2>&1');
+        $output = @shell_exec($binary . ' --version 2>&1');
         if (is_string($output) && str_contains($output, 'PHP')) {
             return $binary;
         }
@@ -102,10 +102,10 @@ function bootArtisanKernel(string $basePath)
         return $kernel;
     }
 
-    require_once $basePath.'/vendor/autoload.php';
+    require_once $basePath . '/vendor/autoload.php';
 
     /** @var Application $app */
-    $app = require_once $basePath.'/bootstrap/app.php';
+    $app = require_once $basePath . '/bootstrap/app.php';
 
     $kernel = $app->make(Kernel::class);
     $kernel->bootstrap();
@@ -117,7 +117,7 @@ function artisanCall(string $basePath, string $command, array $args = []): strin
 {
     if (function_exists('shell_exec')) {
         $php = phpBinary();
-        $artisan = escapeshellarg($basePath.'/artisan');
+        $artisan = escapeshellarg($basePath . '/artisan');
         $cli = $command;
 
         foreach ($args as $key => $value) {
@@ -126,13 +126,13 @@ function artisanCall(string $basePath, string $command, array $args = []): strin
             }
 
             if ($value === true) {
-                $cli .= ' '.$key;
+                $cli .= ' ' . $key;
             } elseif ($value !== false) {
-                $cli .= ' '.$key.'='.escapeshellarg((string) $value);
+                $cli .= ' ' . $key . '=' . escapeshellarg((string) $value);
             }
         }
 
-        return (string) @shell_exec($php.' '.$artisan.' '.$cli.' 2>&1');
+        return (string) @shell_exec($php . ' ' . $artisan . ' ' . $cli . ' 2>&1');
     }
 
     try {
@@ -141,7 +141,7 @@ function artisanCall(string $basePath, string $command, array $args = []): strin
 
         return (string) Artisan::output();
     } catch (Throwable $exception) {
-        return 'artisan call failed: '.$exception->getMessage();
+        return 'artisan call failed: ' . $exception->getMessage();
     }
 }
 
@@ -166,7 +166,7 @@ function deletePath(string $path): void
     }
 
     foreach (array_diff(scandir($path), ['.', '..']) as $item) {
-        deletePath($path.DIRECTORY_SEPARATOR.$item);
+        deletePath($path . DIRECTORY_SEPARATOR . $item);
     }
 
     @rmdir($path);
@@ -183,8 +183,8 @@ function copyDirectoryContents(string $source, string $target): void
     }
 
     foreach (array_diff(scandir($source), ['.', '..']) as $item) {
-        $sourcePath = $source.DIRECTORY_SEPARATOR.$item;
-        $targetPath = $target.DIRECTORY_SEPARATOR.$item;
+        $sourcePath = $source . DIRECTORY_SEPARATOR . $item;
+        $targetPath = $target . DIRECTORY_SEPARATOR . $item;
 
         if (is_dir($sourcePath) && ! is_link($sourcePath)) {
             copyDirectoryContents($sourcePath, $targetPath);
@@ -231,14 +231,14 @@ function replacePath(string $source, string $target): bool
 
 function findPackageContentDir(string $incomingRoot, array $logs): array
 {
-    if (file_exists($incomingRoot.'/artisan') && is_dir($incomingRoot.'/public')) {
+    if (file_exists($incomingRoot . '/artisan') && is_dir($incomingRoot . '/public')) {
         return [$incomingRoot, $logs];
     }
 
     foreach (array_diff(scandir($incomingRoot), ['.', '..']) as $name) {
-        $candidate = $incomingRoot.DIRECTORY_SEPARATOR.$name;
-        if (is_dir($candidate) && file_exists($candidate.'/artisan') && is_dir($candidate.'/public')) {
-            $logs[] = 'package content dir detected: '.$candidate;
+        $candidate = $incomingRoot . DIRECTORY_SEPARATOR . $name;
+        if (is_dir($candidate) && file_exists($candidate . '/artisan') && is_dir($candidate . '/public')) {
+            $logs[] = 'package content dir detected: ' . $candidate;
 
             return [$candidate, $logs];
         }
@@ -251,23 +251,23 @@ function syncSharedHostingStructure(string $incomingRoot, string $basePath, stri
 {
     $logs = [
         'sync start',
-        'incoming_root: '.$incomingRoot,
-        'base_path: '.$basePath,
-        'public_root: '.$publicRoot,
+        'incoming_root: ' . $incomingRoot,
+        'base_path: ' . $basePath,
+        'public_root: ' . $publicRoot,
     ];
 
     if (! is_dir($incomingRoot)) {
-        throw new RuntimeException('Incoming root tidak ditemukan: '.$incomingRoot);
+        throw new RuntimeException('Incoming root tidak ditemukan: ' . $incomingRoot);
     }
 
     [$incomingRoot, $logs] = findPackageContentDir($incomingRoot, $logs);
-    $incomingPublicDir = $incomingRoot.DIRECTORY_SEPARATOR.'public';
+    $incomingPublicDir = $incomingRoot . DIRECTORY_SEPARATOR . 'public';
 
     if (! is_dir($incomingPublicDir)) {
-        throw new RuntimeException('Folder public package tidak ditemukan: '.$incomingPublicDir);
+        throw new RuntimeException('Folder public package tidak ditemukan: ' . $incomingPublicDir);
     }
 
-    $logs[] = 'resolved incoming_root: '.$incomingRoot;
+    $logs[] = 'resolved incoming_root: ' . $incomingRoot;
     $movedCount = 0;
 
     $backendDirs = [
@@ -293,72 +293,74 @@ function syncSharedHostingStructure(string $incomingRoot, string $basePath, stri
     $publicSkip = ['install', '.htaccess'];
 
     foreach ($backendDirs as $name) {
-        $source = $incomingRoot.DIRECTORY_SEPARATOR.$name;
-        $target = $basePath.DIRECTORY_SEPARATOR.$name;
+        $source = $incomingRoot . DIRECTORY_SEPARATOR . $name;
+        $target = $basePath . DIRECTORY_SEPARATOR . $name;
         if (! file_exists($source)) {
-            $logs[] = 'backend dir missing: '.$source;
+            $logs[] = 'backend dir missing: ' . $source;
 
             continue;
         }
 
-        $logs[] = 'backend dir move: '.$source.' -> '.$target;
+        $logs[] = 'backend dir move: ' . $source . ' -> ' . $target;
         $ok = replacePath($source, $target);
-        $logs[] = 'backend dir '.($ok ? 'done' : 'failed').': '.$name;
+        $logs[] = 'backend dir ' . ($ok ? 'done' : 'failed') . ': ' . $name;
         $movedCount += $ok ? 1 : 0;
     }
 
     foreach ($backendFiles as $name) {
-        $source = $incomingRoot.DIRECTORY_SEPARATOR.$name;
-        $target = $basePath.DIRECTORY_SEPARATOR.$name;
+        $source = $incomingRoot . DIRECTORY_SEPARATOR . $name;
+        $target = $basePath . DIRECTORY_SEPARATOR . $name;
         if (! file_exists($source)) {
-            $logs[] = 'backend file missing: '.$source;
+            $logs[] = 'backend file missing: ' . $source;
 
             continue;
         }
 
-        $logs[] = 'backend file move: '.$source.' -> '.$target;
+        $logs[] = 'backend file move: ' . $source . ' -> ' . $target;
         $ok = replacePath($source, $target);
-        $logs[] = 'backend file '.($ok ? 'done' : 'failed').': '.$name;
+        $logs[] = 'backend file ' . ($ok ? 'done' : 'failed') . ': ' . $name;
         $movedCount += $ok ? 1 : 0;
     }
 
     foreach (array_diff(scandir($incomingPublicDir), ['.', '..']) as $name) {
         if (in_array($name, $publicSkip, true)) {
-            $logs[] = 'public skip: '.$name;
+            $logs[] = 'public skip: ' . $name;
 
             continue;
         }
 
-        $source = $incomingPublicDir.DIRECTORY_SEPARATOR.$name;
-        $target = $publicRoot.DIRECTORY_SEPARATOR.$name;
-        $logs[] = 'public move: '.$source.' -> '.$target;
+        $source = $incomingPublicDir . DIRECTORY_SEPARATOR . $name;
+        $target = ($name === 'build')
+            ? $basePath . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . $name
+            : $publicRoot . DIRECTORY_SEPARATOR . $name;
+        $logs[] = 'public move: ' . $source . ' -> ' . $target;
         $ok = replacePath($source, $target);
-        $logs[] = 'public '.($ok ? 'done' : 'failed').': '.$name;
+        $logs[] = 'public ' . ($ok ? 'done' : 'failed') . ': ' . $name;
         $movedCount += $ok ? 1 : 0;
     }
 
-    $htaccessSource = $incomingPublicDir.DIRECTORY_SEPARATOR.'.htaccess';
-    $htaccessTarget = $publicRoot.DIRECTORY_SEPARATOR.'.htaccess';
+    $htaccessSource = $incomingPublicDir . DIRECTORY_SEPARATOR . '.htaccess';
+    $htaccessTarget = $publicRoot . DIRECTORY_SEPARATOR . '.htaccess';
     if (file_exists($htaccessSource)) {
-        $logs[] = 'public move: '.$htaccessSource.' -> '.$htaccessTarget;
+        $logs[] = 'public move: ' . $htaccessSource . ' -> ' . $htaccessTarget;
         $ok = replacePath($htaccessSource, $htaccessTarget);
-        $logs[] = 'public '.($ok ? 'done' : 'failed').': .htaccess';
+        $logs[] = 'public ' . ($ok ? 'done' : 'failed') . ': .htaccess';
         $movedCount += $ok ? 1 : 0;
     } else {
-        $logs[] = 'public missing: '.$htaccessSource;
+        $logs[] = 'public missing: ' . $htaccessSource;
     }
 
     if ($movedCount === 0) {
-        throw new RuntimeException('Tidak ada file/package yang dipindah. Periksa path folder package: '.$incomingRoot);
+        throw new RuntimeException('Tidak ada file/package yang dipindah. Periksa path folder package: ' . $incomingRoot);
     }
 
-    $staleHotFile = $publicRoot.DIRECTORY_SEPARATOR.'hot';
+    $staleHotFile = $publicRoot . DIRECTORY_SEPARATOR . 'hot';
     if (file_exists($staleHotFile)) {
         @unlink($staleHotFile);
         $logs[] = 'public removed stale: hot';
     }
 
-    $logs[] = 'sync end | moved: '.$movedCount;
+    $logs[] = 'sync end | moved: ' . $movedCount;
 
     return $logs;
 }
@@ -389,8 +391,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Throwable $exception) {
                 $result = [
                     'ok' => false,
-                    'message' => 'Update gagal: '.$exception->getMessage(),
-                    'logs' => implode("\n", [...$debugLog, 'exception: '.$exception->getMessage()]),
+                    'message' => 'Update gagal: ' . $exception->getMessage(),
+                    'logs' => implode("\n", [...$debugLog, 'exception: ' . $exception->getMessage()]),
                 ];
             }
         }
@@ -413,7 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logs = [];
                 $logs[] = implode("\n", syncSharedHostingStructure($incomingRoot, $basePath, $publicRoot));
 
-                $envExample = $basePath.'/.env.example';
+                $envExample = $basePath . '/.env.example';
                 $env = file_exists($envPath) ? file_get_contents($envPath) : file_get_contents($envExample);
 
                 $env = setEnv($env, 'APP_NAME', $appName);
@@ -441,8 +443,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (Throwable $exception) {
                 $result = [
                     'ok' => false,
-                    'message' => 'Install gagal: '.$exception->getMessage(),
-                    'logs' => implode("\n", [...$debugLog, 'exception: '.$exception->getMessage()]),
+                    'message' => 'Install gagal: ' . $exception->getMessage(),
+                    'logs' => implode("\n", [...$debugLog, 'exception: ' . $exception->getMessage()]),
                 ];
             }
         }
@@ -450,7 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $scheme = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$defaultUrl = $scheme.'://'.($_SERVER['HTTP_HOST'] ?? 'localhost');
+$defaultUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
 ?>
 <!doctype html>
 <html lang="id">
