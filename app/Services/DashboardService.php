@@ -19,7 +19,8 @@ class DashboardService
      *         websites: int,
      *         request_logs_today: int,
      *         posts: int,
-     *         request_logs_this_month: int
+     *         request_logs_this_month: int,
+     *         request_logs_period: int
      *     },
      *     request_logs_daily: array<int, array{
      *         date: string,
@@ -37,11 +38,12 @@ class DashboardService
      *     }>
      * }
      */
-    public function getData(): array
+    public function getData(string $period = '30days'): array
     {
         $today = CarbonImmutable::today();
-        $dailyLogs = $this->requestLogsDaily($today);
-        $topRoutes = $this->requestLogsTopRoutes($today);
+        [$startDate, $endDate] = $this->requestLogRange($today, $period);
+        $dailyLogs = $this->requestLogsDaily($startDate, $endDate, $period);
+        $topRoutes = $this->requestLogsTopRoutes($startDate, $endDate);
 
         return [
             'totals' => [
@@ -56,6 +58,12 @@ class DashboardService
                         $today->endOfMonth(),
                     ])
                     ->count(),
+                'request_logs_period' => RequestLog::query()
+                    ->whereBetween('created_at', [
+                        $startDate->startOfDay(),
+                        $endDate->endOfDay(),
+                    ])
+                    ->count(),
             ],
             'request_logs_daily' => $dailyLogs->values()->all(),
             'request_logs_top_routes' => $topRoutes->values()->all(),
@@ -64,17 +72,32 @@ class DashboardService
     }
 
     /**
+     * @return array{CarbonImmutable, CarbonImmutable}
+     */
+    private function requestLogRange(CarbonImmutable $today, string $period): array
+    {
+        return match ($period) {
+            'today' => [$today, $today],
+            'yesterday' => [$today->subDay(), $today->subDay()],
+            '7days' => [$today->subDays(6), $today],
+            default => [$today->subDays(29), $today],
+        };
+    }
+
+    /**
      * @return Collection<int, array{date: string, label: string, total: int}>
      */
-    private function requestLogsDaily(CarbonImmutable $today): Collection
+    private function requestLogsDaily(CarbonImmutable $startDate, CarbonImmutable $endDate, string $period): Collection
     {
-        $startDate = $today->subDays(29);
+        if (in_array($period, ['today', 'yesterday'], true)) {
+            return $this->requestLogsHourly($startDate);
+        }
 
         /** @var Collection<string, int> $dailyTotals */
         $dailyTotals = RequestLog::query()
             ->whereBetween('created_at', [
                 $startDate->startOfDay(),
-                $today->endOfDay(),
+                $endDate->endOfDay(),
             ])
             ->selectRaw('date(created_at) as day, count(*) as total')
             ->groupBy('day')
@@ -82,7 +105,7 @@ class DashboardService
             ->pluck('total', 'day')
             ->map(fn (mixed $total): int => (int) $total);
 
-        return collect(range(0, 29))
+        return collect(range(0, $startDate->diffInDays($endDate)))
             ->map(function (int $offset) use ($startDate, $dailyTotals): array {
                 $date = $startDate->addDays($offset);
                 $dateKey = $date->toDateString();
@@ -96,14 +119,41 @@ class DashboardService
     }
 
     /**
+     * @return Collection<int, array{date: string, label: string, total: int}>
+     */
+    private function requestLogsHourly(CarbonImmutable $date): Collection
+    {
+        /** @var Collection<string, int> $hourlyTotals */
+        $hourlyTotals = RequestLog::query()
+            ->whereBetween('created_at', [
+                $date->startOfDay(),
+                $date->endOfDay(),
+            ])
+            ->get('created_at')
+            ->countBy(fn (RequestLog $requestLog): string => CarbonImmutable::parse($requestLog->created_at)->format('H'));
+
+        return collect(range(0, 23))
+            ->map(function (int $hour) use ($date, $hourlyTotals): array {
+                $dateTime = $date->setTime($hour, 0);
+                $hourKey = $dateTime->format('H');
+
+                return [
+                    'date' => $dateTime->format('Y-m-d\TH:00:00'),
+                    'label' => $dateTime->format('H:00'),
+                    'total' => $hourlyTotals->get($hourKey, 0),
+                ];
+            });
+    }
+
+    /**
      * @return Collection<int, array{route: string, total: int, percentage: float}>
      */
-    private function requestLogsTopRoutes(CarbonImmutable $today): Collection
+    private function requestLogsTopRoutes(CarbonImmutable $startDate, CarbonImmutable $endDate): Collection
     {
         $routes = RequestLog::query()
             ->whereBetween('created_at', [
-                $today->subYear()->startOfDay(),
-                $today->endOfDay(),
+                $startDate->startOfDay(),
+                $endDate->endOfDay(),
             ])
             ->selectRaw('route, count(*) as total')
             ->groupBy('route')

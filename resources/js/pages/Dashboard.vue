@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import {
     VisAxis,
     VisDonut,
@@ -29,12 +29,15 @@ type TopRequestRoute = {
     percentage: number;
 };
 
+type PeriodFilter = 'today' | 'yesterday' | '7days' | '30days';
+
 type DashboardData = {
     totals: {
         websites: number;
         request_logs_today: number;
         posts: number;
         request_logs_this_month: number;
+        request_logs_period: number;
     };
     request_logs_daily: DailyRequestLog[];
     request_logs_top_routes: TopRequestRoute[];
@@ -46,6 +49,9 @@ type DashboardData = {
 
 const props = defineProps<{
     dashboardData: DashboardData;
+    filters: {
+        period: PeriodFilter;
+    };
 }>();
 
 const chartColors = [
@@ -67,6 +73,38 @@ defineOptions({
     },
 });
 
+const periodOptions: { label: string; value: PeriodFilter }[] = [
+    { label: 'Today', value: 'today' },
+    { label: 'Yesterday', value: 'yesterday' },
+    { label: '7 Days', value: '7days' },
+    { label: '30 Days', value: '30days' },
+];
+
+const periodLabel = computed(() => {
+    return periodOptions.find((option) => option.value === props.filters.period)
+        ?.label;
+});
+const requestLogChartUnit = computed(() => {
+    return props.filters.period === 'today' ||
+        props.filters.period === 'yesterday'
+        ? 'per jam'
+        : 'per hari';
+});
+
+const applyPeriod = (period: PeriodFilter): void => {
+    router.get(
+        dashboard.url({
+            query: { period },
+        }),
+        {},
+        {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        },
+    );
+};
+
 const metrics = computed<DashboardMetric[]>(() => [
     {
         label: 'Total Website',
@@ -84,8 +122,8 @@ const metrics = computed<DashboardMetric[]>(() => [
         tone: 'warning',
     },
     {
-        label: 'RequestLog This Month',
-        value: props.dashboardData.totals.request_logs_this_month,
+        label: `RequestLog ${periodLabel.value}`,
+        value: props.dashboardData.totals.request_logs_period,
         tone: 'neutral',
     },
 ]);
@@ -94,15 +132,16 @@ const dailyChartData = computed(() => props.dashboardData.request_logs_daily);
 const topRoutesChartData = computed(
     () => props.dashboardData.request_logs_top_routes,
 );
-const topCategoriesChartData = computed(
-    () =>
-        props.dashboardData.top_categories_by_posts.map((item, index, items) => ({
-            ...item,
-            rank: items.length - index,
-        })),
+const topCategoriesChartData = computed(() =>
+    props.dashboardData.top_categories_by_posts.map((item, index, items) => ({
+        ...item,
+        rank: items.length - index,
+    })),
 );
 
-const lineX = (d: DailyRequestLog): Date => new Date(`${d.date}T00:00:00`);
+const lineX = (d: DailyRequestLog): Date => {
+    return new Date(d.date.includes('T') ? d.date : `${d.date}T00:00:00`);
+};
 const lineY = (d: DailyRequestLog): number => d.total;
 
 const lineTickFormat = (
@@ -111,6 +150,16 @@ const lineTickFormat = (
     ticks: Array<number | Date>,
 ): string => {
     const date = tick instanceof Date ? tick : new Date(tick);
+
+    if (
+        props.filters.period === 'today' ||
+        props.filters.period === 'yesterday'
+    ) {
+        return new Intl.DateTimeFormat('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(date);
+    }
 
     if (index === 0 || index === ticks.length - 1) {
         return new Intl.DateTimeFormat('id-ID', {
@@ -160,7 +209,9 @@ const topCategoryTickFormat = (tick: number | Date): string => {
         return '';
     }
 
-    const category = topCategoriesChartData.value.find((item) => item.rank === tick);
+    const category = topCategoriesChartData.value.find(
+        (item) => item.rank === tick,
+    );
 
     return category?.name ?? '';
 };
@@ -180,6 +231,39 @@ const topCategoryValueFormat = (tick: number | Date): string => {
     <div
         class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
     >
+        <div
+            class="flex flex-col gap-3 rounded-xl border border-default bg-default p-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+            <div>
+                <h1 class="text-2xl font-semibold text-highlighted">
+                    Dashboard
+                </h1>
+                <p class="text-sm text-muted">
+                    Filter request log: {{ periodLabel }}.
+                </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <UButton
+                    v-for="option in periodOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :color="
+                        props.filters.period === option.value
+                            ? 'primary'
+                            : 'neutral'
+                    "
+                    :variant="
+                        props.filters.period === option.value
+                            ? 'solid'
+                            : 'outline'
+                    "
+                    size="sm"
+                    @click="applyPeriod(option.value)"
+                />
+            </div>
+        </div>
+
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <UCard
                 v-for="metric in metrics"
@@ -212,7 +296,8 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                             RequestLog Daily
                         </h2>
                         <p class="text-sm text-muted">
-                            Aktivitas harian selama 30 hari terakhir.
+                            Aktivitas {{ requestLogChartUnit }} periode
+                            {{ periodLabel }}.
                         </p>
                     </div>
                 </template>
@@ -268,7 +353,8 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                             Top Request Routes
                         </h2>
                         <p class="text-sm text-muted">
-                            Distribusi request terbanyak dalam 1 tahun terakhir.
+                            Distribusi request terbanyak periode
+                            {{ periodLabel }}.
                         </p>
                     </div>
                 </template>
@@ -339,7 +425,7 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                         v-else
                         class="rounded-lg border border-dashed border-default px-4 py-6 text-center text-sm text-muted"
                     >
-                        Belum ada request log dalam 1 tahun terakhir.
+                        Belum ada request log untuk periode {{ periodLabel }}.
                     </div>
                 </div>
             </UCard>
