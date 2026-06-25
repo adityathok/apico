@@ -38,6 +38,7 @@ import {
     Server,
     Globe,
     ScrollText,
+    RefreshCw,
 } from 'lucide-vue-next';
 import type { NavItem } from '@/types';
 
@@ -91,6 +92,11 @@ const mainNavItems: NavItem[] = [
         title: 'Request Logs',
         href: requestlogsIndex(),
         icon: ScrollText,
+    },
+    {
+        title: 'System Update',
+        href: '/admin/system/update',
+        icon: RefreshCw,
     },
 ];
 

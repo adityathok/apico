@@ -1,0 +1,118 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, zip, pdo_mysql
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION="$(php -r '$c=json_decode(file_get_contents("composer.json"), true); echo $c["version"] ?? "";')"
+          if [ -z "$VERSION" ]; then
+            echo "composer.json version is missing"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Get latest release tag
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          JSON="$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "User-Agent: api-vd-co-auto-release" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")"
+          TAG="$(JSON="$JSON" python3 - <<'PY'
+          import json, os
+          try:
+              data = json.loads(os.environ.get('JSON', ''))
+          except Exception:
+              print('')
+              raise SystemExit(0)
+          print((data.get('tag_name') or '').strip())
+          PY
+          )"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Decide release
+        id: decide
+        env:
+          CURRENT: ${{ steps.version.outputs.version }}
+          LATEST_TAG: ${{ steps.latest.outputs.tag }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os, re
+          def parse(v):
+              v = v.strip().lstrip('vV').split('-', 1)[0].split('+', 1)[0]
+              nums = []
+              for part in v.split('.'):
+                  match = re.match(r'(\d+)', part)
+                  nums.append(int(match.group(1)) if match else 0)
+              return tuple((nums + [0, 0, 0])[:3])
+          latest = os.environ.get('LATEST_TAG', '').lstrip('vV')
+          should = latest == '' or parse(os.environ['CURRENT']) > parse(latest)
+          print('should_release=' + ('true' if should else 'false'))
+          PY
+
+      - name: Install composer dependencies
+        if: steps.decide.outputs.should_release == 'true'
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
+
+      - name: Install npm dependencies
+        if: steps.decide.outputs.should_release == 'true'
+        run: npm ci
+
+      - name: Build package
+        if: steps.decide.outputs.should_release == 'true'
+        run: composer run build:production
+
+      - name: Verify artifact
+        if: steps.decide.outputs.should_release == 'true'
+        id: artifact
+        run: |
+          FILE="dist/api-vd-co.${{ steps.version.outputs.version }}.zip"
+          if [ ! -f "$FILE" ]; then
+            echo "Expected artifact not found: $FILE"
+            ls -la dist || true
+            exit 1
+          fi
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: steps.decide.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: ${{ steps.artifact.outputs.file }}

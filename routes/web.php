@@ -10,6 +10,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RequestLogController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\UpdateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WebsiteController;
 use Illuminate\Support\Facades\Route;
@@ -30,6 +31,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('admin/licenses', 'Licenses')->name('licenses');
     Route::inertia('admin/websites', 'Websites')->name('websites');
     Route::inertia('admin/servers', 'Servers')->name('servers');
+    Route::get('admin/system/update', [UpdateController::class, 'page'])->name('system.update');
+    Route::get('admin/system/check-updates', [UpdateController::class, 'checkUpdates'])->name('system.check-updates');
+    Route::post('admin/system/perform-update', [UpdateController::class, 'performUpdate'])->name('system.perform-update');
+    Route::post('admin/system/restore-backup', [UpdateController::class, 'restoreBackup'])->name('system.restore-backup');
     // Route::inertia('admin/requestlogs', 'RequestLogs')->name('requestlogs');
 
     Route::get('admin/requestlogs', [RequestLogController::class, 'index'])->name('requestlogsIndex');
@@ -56,4 +61,4 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::post('article-generator-by-agent', [ArticleGeneratorController::class, 'generate_by_agent']);
 });
 
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';
