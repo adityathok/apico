@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 type RouteItem = {
     methods: string[];
@@ -32,21 +32,23 @@ const expandedGroups = ref<ExpandedState>(
     Object.fromEntries(props.routePrefixes.map((p) => [p, true])),
 );
 
-const expandedRoutes = ref<ExpandedState>({});
 const loadingRoute = ref<string | null>(null);
-const testResults = ref<Record<string, TestResult | null>>({});
 const requestBodies = ref<Record<string, string>>({});
+const requestParams = ref<Record<string, string>>({});
+
+// Modal state
+const showModal = ref(false);
+const modalRoute = ref<RouteItem | null>(null);
+const modalResult = ref<TestResult | null>(null);
+
+const modalTitle = computed(() => {
+    if (!modalRoute.value) return 'API Request';
+    const method = modalRoute.value.methods[0] || 'GET';
+    return `${method} /${modalRoute.value.uri}`;
+});
 
 function toggleGroup(prefix: string): void {
     expandedGroups.value[prefix] = !expandedGroups.value[prefix];
-}
-
-function toggleRoute(uri: string): void {
-    if (expandedRoutes.value[uri]) {
-        expandedRoutes.value[uri] = false;
-        return;
-    }
-    expandedRoutes.value[uri] = true;
 }
 
 const methodColors: Record<string, string> = {
@@ -74,10 +76,23 @@ async function sendRequest(route: RouteItem): Promise<void> {
     const isJsonBody = ['POST', 'PUT', 'PATCH'].includes(method);
     const key = route.uri;
 
+    modalRoute.value = route;
+    modalResult.value = null;
+    showModal.value = true;
     loadingRoute.value = key;
-    testResults.value[key] = null;
 
     try {
+        // Build URL with path params if any
+        let url = `/${route.uri}`;
+        const pathParams = url.match(/\{(\w+)\}/g);
+        if (pathParams) {
+            for (const param of pathParams) {
+                const name = param.replace(/[{}]/g, '');
+                const val = requestParams.value[`${key}:${name}`] || name;
+                url = url.replace(param, val);
+            }
+        }
+
         let body: unknown = {};
 
         if (isJsonBody) {
@@ -91,7 +106,7 @@ async function sendRequest(route: RouteItem): Promise<void> {
 
         const response = await axios({
             method: method.toLowerCase(),
-            url: `/${route.uri}`,
+            url,
             data: isJsonBody ? body : undefined,
             headers: {
                 Accept: 'application/json',
@@ -99,20 +114,20 @@ async function sendRequest(route: RouteItem): Promise<void> {
             validateStatus: () => true,
         });
 
-        testResults.value[key] = {
+        modalResult.value = {
             status: response.status,
             headers: response.headers as Record<string, string>,
             body: JSON.stringify(response.data, null, 2),
         };
     } catch (error) {
         if (axios.isAxiosError(error) && error.response) {
-            testResults.value[key] = {
+            modalResult.value = {
                 status: error.response.status,
                 headers: error.response.headers as Record<string, string>,
                 body: JSON.stringify(error.response.data, null, 2),
             };
         } else {
-            testResults.value[key] = {
+            modalResult.value = {
                 status: 0,
                 headers: {},
                 body: '',
@@ -203,10 +218,9 @@ function getStatusColor(status: number): string {
 
                 <div v-if="expandedGroups[prefix]" class="border-t border-default">
                     <div
-                        v-for="(route, index) in groupedRoutes[prefix]"
+                        v-for="route in groupedRoutes[prefix]"
                         :key="route.uri"
                         class="border-b border-default last:border-b-0"
-                        :class="{ 'bg-muted/10': expandedRoutes[route.uri] }"
                     >
                         <div class="flex items-center gap-3 px-4 py-2.5">
                             <span
@@ -231,86 +245,13 @@ function getStatusColor(status: number): string {
 
                             <div class="flex shrink-0 items-center gap-1.5">
                                 <UButton
-                                    :label="expandedRoutes[route.uri] ? 'Hide' : 'Send'"
-                                    :color="expandedRoutes[route.uri] ? 'neutral' : 'primary'"
+                                    label="Send"
+                                    color="primary"
                                     size="xs"
-                                    :variant="expandedRoutes[route.uri] ? 'outline' : 'solid'"
+                                    variant="solid"
                                     :loading="loadingRoute === route.uri"
-                                    @click="expandedRoutes[route.uri] ? (expandedRoutes[route.uri] = false) : sendRequest(route)"
+                                    @click="sendRequest(route)"
                                 />
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="expandedRoutes[route.uri]"
-                            class="border-t border-default px-4 py-3"
-                        >
-                            <div class="mb-3 flex flex-wrap gap-4 text-xs text-muted">
-                                <div>
-                                    <span class="font-medium text-highlighted">Action:</span>
-                                    {{ route.action }}
-                                </div>
-                                <div>
-                                    <span class="font-medium text-highlighted">Middleware:</span>
-                                    {{ route.middleware.join(', ') || 'none' }}
-                                </div>
-                            </div>
-
-                            <div
-                                v-if="['POST', 'PUT', 'PATCH'].includes(route.methods[0] || '')"
-                                class="mb-3"
-                            >
-                                <label class="mb-1 block text-xs font-medium text-highlighted">
-                                    Request Body (JSON):
-                                </label>
-                                <UTextarea
-                                    v-model="requestBodies[route.uri]"
-                                    :placeholder="getDefaultBody(route)"
-                                    rows="4"
-                                    class="w-full"
-                                    :ui="{
-                                        base: 'font-mono text-xs',
-                                    }"
-                                />
-                            </div>
-
-                            <UButton
-                                label="Send Request"
-                                size="sm"
-                                color="primary"
-                                :loading="loadingRoute === route.uri"
-                                @click="sendRequest(route)"
-                            />
-
-                            <div v-if="testResults[route.uri]" class="mt-3 space-y-2">
-                                <div
-                                    class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-                                    :class="{
-                                        'border-emerald-500/30 bg-emerald-500/5': testResults[route.uri]?.status && testResults[route.uri]!.status >= 200 && testResults[route.uri]!.status < 300,
-                                        'border-red-500/30 bg-red-500/5': testResults[route.uri]?.status && testResults[route.uri]!.status >= 400,
-                                    }"
-                                >
-                                    <span class="font-medium">Status:</span>
-                                    <span
-                                        class="font-semibold"
-                                        :class="getStatusColor(testResults[route.uri]?.status ?? 0)"
-                                    >
-                                        {{ testResults[route.uri]?.status }}
-                                    </span>
-                                    <span v-if="testResults[route.uri]?.error" class="ml-2 text-red-500">
-                                        {{ testResults[route.uri]?.error }}
-                                    </span>
-                                </div>
-
-                                <div
-                                    v-if="testResults[route.uri]?.body"
-                                    class="rounded-lg border border-default"
-                                >
-                                    <div class="border-b border-default px-3 py-1.5 text-xs font-medium text-muted">
-                                        Response Body:
-                                    </div>
-                                    <pre class="max-h-96 overflow-auto p-3 text-xs font-mono text-highlighted"><code>{{ testResults[route.uri]?.body }}</code></pre>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -318,4 +259,116 @@ function getStatusColor(status: number): string {
             </div>
         </div>
     </div>
+
+    <!-- Response Modal -->
+    <UModal
+        v-model:open="showModal"
+        :title="modalTitle"
+        :ui="{ footer: 'justify-end' }"
+    >
+        <template #body>
+            <div class="space-y-4">
+                <!-- Route Info -->
+                <div class="flex flex-wrap gap-4 text-xs text-muted">
+                    <div>
+                        <span class="font-medium text-highlighted">Action:</span>
+                        {{ modalRoute?.action }}
+                    </div>
+                    <div>
+                        <span class="font-medium text-highlighted">Middleware:</span>
+                        {{ modalRoute?.middleware.join(', ') || 'none' }}
+                    </div>
+                </div>
+
+                <!-- Path Params Input -->
+                <div
+                    v-if="modalRoute && modalRoute.uri.match(/\{(\w+)\}/g)"
+                    class="space-y-2"
+                >
+                    <label class="text-xs font-medium text-highlighted">Path Parameters:</label>
+                    <div
+                        v-for="param in (modalRoute?.uri.match(/\{(\w+)\}/g) || []).map(p => p.replace(/[{}]/g, ''))"
+                        :key="param"
+                        class="flex items-center gap-2"
+                    >
+                        <span class="text-xs font-mono text-muted min-w-24">{{ param }}</span>
+                        <UInput
+                            v-model="requestParams[`${modalRoute!.uri}:${param}`]"
+                            :placeholder="param"
+                            size="sm"
+                            class="flex-1"
+                        />
+                    </div>
+                </div>
+
+                <!-- Request Body (JSON) -->
+                <div
+                    v-if="modalRoute && ['POST', 'PUT', 'PATCH'].includes(modalRoute.methods[0] || '')"
+                    class="space-y-1.5"
+                >
+                    <label class="text-xs font-medium text-highlighted">
+                        Request Body (JSON):
+                    </label>
+                    <UTextarea
+                        v-model="requestBodies[modalRoute.uri]"
+                        :placeholder="modalRoute ? getDefaultBody(modalRoute) : '{}'"
+                        rows="4"
+                        class="w-full"
+                        :ui="{
+                            base: 'font-mono text-xs',
+                        }"
+                    />
+                </div>
+
+                <!-- Response -->
+                <div v-if="modalResult" class="space-y-2 rounded-lg border border-default p-3">
+                    <div
+                        class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+                        :class="{
+                            'border-emerald-500/30 bg-emerald-500/5': modalResult.status && modalResult.status >= 200 && modalResult.status < 300,
+                            'border-red-500/30 bg-red-500/5': modalResult.status && modalResult.status >= 400,
+                        }"
+                    >
+                        <span class="font-medium">Status:</span>
+                        <span
+                            class="font-semibold"
+                            :class="getStatusColor(modalResult.status)"
+                        >
+                            {{ modalResult.status }}
+                        </span>
+                        <span v-if="modalResult.error" class="ml-2 text-red-500">
+                            {{ modalResult.error }}
+                        </span>
+                    </div>
+
+                    <div
+                        v-if="modalResult.body"
+                        class="rounded-lg border border-default"
+                    >
+                        <div class="border-b border-default px-3 py-1.5 text-xs font-medium text-muted">
+                            Response Body:
+                        </div>
+                        <pre class="max-h-96 overflow-auto p-3 text-xs font-mono text-highlighted"><code>{{ modalResult.body }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template #footer>
+            <UButton
+                label="Send Request"
+                size="sm"
+                color="primary"
+                :loading="loadingRoute === modalRoute?.uri"
+                @click="modalRoute && sendRequest(modalRoute)"
+            />
+            <UButton
+                label="Close"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                @click="showModal = false"
+            />
+        </template>
+    </UModal>
 </template>
