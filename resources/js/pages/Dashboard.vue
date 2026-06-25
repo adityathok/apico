@@ -2,16 +2,16 @@
 import { Head, router } from '@inertiajs/vue3';
 import {
     VisAxis,
+    VisCrosshair,
+    VisCrosshairSelectors,
     VisDonut,
     VisGroupedBar,
     VisLine,
     VisScatter,
-    VisScatterSelectors,
     VisSingleContainer,
-    VisTooltip,
     VisXYContainer,
 } from '@unovis/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { dashboard } from '@/routes';
 
 type DashboardMetric = {
@@ -146,11 +146,38 @@ const lineX = (d: DailyRequestLog): Date => {
     return new Date(d.date.includes('T') ? d.date : `${d.date}T00:00:00`);
 };
 const lineY = (d: DailyRequestLog): number => d.total;
-const dailyTooltip = (d: DailyRequestLog): string => {
-    return `<div class="space-y-1 rounded-lg border border-default bg-default px-3 py-2 shadow-lg">
-        <p class="text-xs text-muted">${d.label}</p>
-        <p class="text-sm font-semibold text-highlighted">${d.total.toLocaleString('id-ID')} requests</p>
-    </div>`;
+const hoveredDailyLog = ref<DailyRequestLog | null>(null);
+const dailyTooltipPosition = ref({ x: 0, y: 0 });
+const dailyChartWrapper = ref<HTMLElement | null>(null);
+const dailyTooltip = (): string => '';
+const updateHoveredDailyLog = (
+    _x?: number | Date,
+    datum?: DailyRequestLog,
+    datumIndex?: number,
+    _event?: MouseEvent | WheelEvent,
+): void => {
+    hoveredDailyLog.value =
+        datum ?? dailyChartData.value[datumIndex ?? -1] ?? null;
+
+    if (dailyChartWrapper.value) {
+        requestAnimationFrame(() => {
+            const dot = dailyChartWrapper.value?.querySelector(
+                `.${VisCrosshairSelectors.circle}`,
+            );
+
+            if (!dot || !dailyChartWrapper.value) {
+                return;
+            }
+
+            const dotBounds = dot.getBoundingClientRect();
+            const chartBounds = dailyChartWrapper.value.getBoundingClientRect();
+
+            dailyTooltipPosition.value = {
+                x: dotBounds.left + dotBounds.width / 2 - chartBounds.left,
+                y: dotBounds.top + dotBounds.height / 2 - chartBounds.top,
+            };
+        });
+    }
 };
 
 const lineTickFormat = (
@@ -312,8 +339,16 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                 </template>
 
                 <div class="space-y-4">
-                    <div class="rounded-xl bg-muted/20 p-3">
-                        <VisXYContainer :height="280" class="dashboard-chart">
+                    <div
+                        ref="dailyChartWrapper"
+                        class="relative rounded-xl bg-muted/20 p-3"
+                        @mouseleave="hoveredDailyLog = null"
+                    >
+                        <VisXYContainer
+                            :data="dailyChartData"
+                            :height="280"
+                            class="dashboard-chart"
+                        >
                             <VisLine
                                 :data="dailyChartData"
                                 :x="lineX"
@@ -331,10 +366,18 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                                 strokeColor="var(--ui-bg)"
                                 cursor="pointer"
                             />
-                            <VisTooltip
-                                :triggers="{
-                                    [VisScatterSelectors.point]: dailyTooltip,
-                                }"
+                            <VisCrosshair
+                                :data="dailyChartData"
+                                :x="lineX"
+                                :y="lineY"
+                                :template="dailyTooltip"
+                                color="var(--color-chart-1)"
+                                :circleRadius="5"
+                                :strokeWidth="2"
+                                strokeColor="var(--ui-bg)"
+                                :hideWhenFarFromPointer="false"
+                                :visibilityThreshold="0"
+                                :onCrosshairMove="updateHoveredDailyLog"
                             />
                             <VisAxis
                                 :data="dailyChartData"
@@ -351,6 +394,27 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                                 :tickFormat="lineValueFormat"
                             />
                         </VisXYContainer>
+
+                        <div
+                            v-if="hoveredDailyLog"
+                            class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-lg border border-default bg-default px-3 py-2 shadow-lg"
+                            :style="{
+                                left: `${dailyTooltipPosition.x}px`,
+                                top: `${dailyTooltipPosition.y}px`,
+                            }"
+                        >
+                            <p class="text-xs text-muted">
+                                {{ hoveredDailyLog.label }}
+                            </p>
+                            <p class="text-sm font-semibold text-highlighted">
+                                {{
+                                    hoveredDailyLog.total.toLocaleString(
+                                        'id-ID',
+                                    )
+                                }}
+                                requests
+                            </p>
+                        </div>
                     </div>
 
                     <div class="grid gap-2 sm:grid-cols-3">
