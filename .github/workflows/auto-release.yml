@@ -116,3 +116,14 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: ${{ steps.artifact.outputs.file }}
+
+      - name: Trigger release webhook
+        if: steps.decide.outputs.should_release == 'true'
+        env:
+          RELEASE_WEBHOOK_SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
+        run: |
+          SIGNATURE="$(TZ=Asia/Jakarta date +%d%m%Y | openssl dgst -sha256 -hmac "${RELEASE_WEBHOOK_SECRET}" -binary | xxd -p -c 256)"
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "X-Signature: ${SIGNATURE}" \
+            "https://api.velocitydeveloper.co/api/v1/release-project/api-vd-co"
