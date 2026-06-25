@@ -64,5 +64,34 @@ class RequestLogSeeder extends Seeder
                 ],
             );
         });
+
+        $websites = Website::query()->get();
+        $licenses = License::query()->get();
+        $remaining = max(1000 - RequestLog::query()->count(), 0);
+
+        RequestLog::factory()
+            ->count($remaining)
+            ->state(function () use ($websites, $licenses): array {
+                $website = $websites->random();
+                $license = $licenses->random();
+                $route = fake()->randomElement(['/api/validate-license', '/api/check-update', '/api/download']);
+                $createdAt = fake()->dateTimeBetween('-30 days');
+
+                return [
+                    'route' => $route,
+                    'method' => $route === '/api/check-update' ? 'GET' : 'POST',
+                    'request' => [
+                        'domain' => $website->domain,
+                        'license_key' => $license->code,
+                        'plugin_version' => fake()->randomElement(['1.0.0', '1.1.0', '1.2.0', '2.0.0']),
+                    ],
+                    'status' => fake()->randomElement([200, 200, 200, 401, 403, 422]),
+                    'website_id' => $website->id,
+                    'license_id' => $license->id,
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
+                ];
+            })
+            ->create();
     }
 }

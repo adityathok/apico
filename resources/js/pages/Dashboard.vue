@@ -5,7 +5,10 @@ import {
     VisDonut,
     VisGroupedBar,
     VisLine,
+    VisScatter,
+    VisScatterSelectors,
     VisSingleContainer,
+    VisTooltip,
     VisXYContainer,
 } from '@unovis/vue';
 import { computed } from 'vue';
@@ -143,6 +146,12 @@ const lineX = (d: DailyRequestLog): Date => {
     return new Date(d.date.includes('T') ? d.date : `${d.date}T00:00:00`);
 };
 const lineY = (d: DailyRequestLog): number => d.total;
+const dailyTooltip = (d: DailyRequestLog): string => {
+    return `<div class="space-y-1 rounded-lg border border-default bg-default px-3 py-2 shadow-lg">
+        <p class="text-xs text-muted">${d.label}</p>
+        <p class="text-sm font-semibold text-highlighted">${d.total.toLocaleString('id-ID')} requests</p>
+    </div>`;
+};
 
 const lineTickFormat = (
     tick: number | Date,
@@ -311,6 +320,21 @@ const topCategoryValueFormat = (tick: number | Date): string => {
                                 :y="lineY"
                                 color="var(--color-chart-1)"
                                 :lineWidth="3"
+                            />
+                            <VisScatter
+                                :data="dailyChartData"
+                                :x="lineX"
+                                :y="lineY"
+                                color="var(--color-chart-1)"
+                                :size="8"
+                                :strokeWidth="2"
+                                strokeColor="var(--ui-bg)"
+                                cursor="pointer"
+                            />
+                            <VisTooltip
+                                :triggers="{
+                                    [VisScatterSelectors.point]: dailyTooltip,
+                                }"
                             />
                             <VisAxis
                                 :data="dailyChartData"
