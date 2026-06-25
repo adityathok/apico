@@ -30,7 +30,7 @@ class DocsApiController extends Controller
         $groupedRoutes = $routes->groupBy(function ($route) {
             $parts = explode('/', $route['uri']);
 
-            return $parts[0] . (isset($parts[1]) ? '/' . $parts[1] : '');
+            return $parts[0].(isset($parts[1]) ? '/'.$parts[1] : '');
         })->toArray();
 
         $routePrefixes = array_keys($groupedRoutes);

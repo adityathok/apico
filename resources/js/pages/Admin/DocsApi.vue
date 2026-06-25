@@ -3,6 +3,37 @@ import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, ref } from 'vue';
 
+// Minimal md5 implementation to match PHP md5()
+function md5(input: string): string {
+    const hex = (n: number) => (n < 16 ? '0' : '') + n.toString(16);
+    const hash = (s: string) => {
+        const k = [];
+        for (let i = 0; i < 64; i++) {
+            k[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296);
+        }
+        let a = 1732584193, b = 4023233417, c = 2562383102, d = 271733878;
+        const w: number[] = [];
+        for (let i = 0; i < s.length * 8; i += 8) {
+            w[i >> 5] |= (s.charCodeAt(i / 8) & 255) << (i % 32);
+        }
+        w[s.length * 8 >> 5] |= 128 << ((s.length * 8) % 32);
+        w[((s.length * 8 + 64) >>> 9 << 4) + 14] = s.length * 8;
+        const f = (x: number, y: number, z: number, t: number) =>
+            [ (x & y) | (~x & z), (x & z) | (y & ~z), x ^ y ^ z, y ^ (x | ~z) ][t];
+        const sft = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21];
+        for (let i = 0; i < w.length; i += 16) {
+            const [aa, bb, cc, dd] = [a, b, c, d];
+            for (let j = 0; j < 64; j++) {
+                const t = (a + f(b, c, d, j >> 4) + w[i + (j < 16 ? j : j < 32 ? (5 * j + 1) % 16 : j < 48 ? (3 * j + 5) % 16 : (7 * j) % 16)] + k[j]) | 0;
+                a = d; d = c; c = b; b = (b + ((t << sft[(j >> 3 << 2) | (j & 3)]) | (t >>> (32 - sft[(j >> 3 << 2) | (j & 3)])))) | 0;
+            }
+            a = (a + aa) | 0; b = (b + bb) | 0; c = (c + cc) | 0; d = (d + dd) | 0;
+        }
+        return hex(a) + hex(b) + hex(c) + hex(d);
+    };
+    return hash(input);
+}
+
 type RouteItem = {
     methods: string[];
     uri: string;
@@ -35,6 +66,7 @@ const expandedGroups = ref<ExpandedState>(
 const loadingRoute = ref<string | null>(null);
 const requestBodies = ref<Record<string, string>>({});
 const requestParams = ref<Record<string, string>>({});
+const customHeaders = ref<Record<string, { key: string; value: string }[]>>({});
 
 // Modal state
 const showModal = ref(false);
@@ -71,11 +103,51 @@ function getDefaultBody(route: RouteItem): string {
     return '{}';
 }
 
+function getDefaultHeaders(route: RouteItem): { key: string; value: string }[] {
+    const middleware = route.middleware.map((m) => m.split(':')[0]);
+    const headers: { key: string; value: string }[] = [];
+
+    if (middleware.includes('public.ai.signature')) {
+        const today = new Date();
+        const d = String(today.getDate()).padStart(2, '0');
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const y = today.getFullYear();
+        headers.push({ key: 'signature', value: md5(`${d}${m}${y}`) });
+    }
+
+    if (middleware.includes('license')) {
+        headers.push({ key: 'license', value: '' });
+    }
+
+    return headers;
+}
+
+function initHeaders(route: RouteItem): void {
+    const key = route.uri;
+    if (!customHeaders.value[key]) {
+        customHeaders.value[key] = getDefaultHeaders(route);
+    }
+}
+
+function addHeader(route: RouteItem): void {
+    const key = route.uri;
+    if (!customHeaders.value[key]) {
+        customHeaders.value[key] = [];
+    }
+    customHeaders.value[key] = [...customHeaders.value[key], { key: '', value: '' }];
+}
+
+function removeHeader(route: RouteItem, index: number): void {
+    const key = route.uri;
+    customHeaders.value[key] = customHeaders.value[key].filter((_, i) => i !== index);
+}
+
 async function sendRequest(route: RouteItem): Promise<void> {
     const method = route.methods[0] || 'GET';
     const isJsonBody = ['POST', 'PUT', 'PATCH'].includes(method);
     const key = route.uri;
 
+    initHeaders(route);
     modalRoute.value = route;
     modalResult.value = null;
     showModal.value = true;
@@ -104,13 +176,22 @@ async function sendRequest(route: RouteItem): Promise<void> {
             }
         }
 
+        // Build headers from custom headers
+        const headers: Record<string, string> = {
+            Accept: 'application/json',
+        };
+        const routeHeaders = customHeaders.value[key] || [];
+        for (const h of routeHeaders) {
+            if (h.key.trim()) {
+                headers[h.key.trim()] = h.value;
+            }
+        }
+
         const response = await axios({
             method: method.toLowerCase(),
             url,
             data: isJsonBody ? body : undefined,
-            headers: {
-                Accept: 'application/json',
-            },
+            headers,
             validateStatus: () => true,
         });
 
@@ -264,7 +345,7 @@ function getStatusColor(status: number): string {
     <UModal
         v-model:open="showModal"
         :title="modalTitle"
-        :ui="{ footer: 'justify-end' }"
+        :ui="{ footer: 'justify-end',content:'min-w-7xl'  }"
     >
         <template #body>
             <div class="space-y-4">
@@ -318,6 +399,46 @@ function getStatusColor(status: number): string {
                             base: 'font-mono text-xs',
                         }"
                     />
+                </div>
+
+                <!-- Custom Headers -->
+                <div v-if="modalRoute" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium text-highlighted">
+                            Headers
+                        </label>
+                        <UButton
+                            label="Add Header"
+                            color="info"
+                            icon="i-lucide-plus"
+                            @click="addHeader(modalRoute)"
+                        />
+                    </div>
+                    <div
+                        v-for="(header, index) in customHeaders[modalRoute.uri] || []"
+                        :key="index"
+                        class="flex items-center gap-2"
+                    >
+                        <UInput
+                            v-model="header.key"
+                            placeholder="Header name"
+                            size="sm"
+                            class="w-40"
+                        />
+                        <UInput
+                            v-model="header.value"
+                            placeholder="Value"
+                            size="sm"
+                            class="flex-1"
+                        />
+                        <UButton
+                            icon="i-lucide-x"
+                            size="2xs"
+                            color="neutral"
+                            variant="ghost"
+                            @click="removeHeader(modalRoute, index)"
+                        />
+                    </div>
                 </div>
 
                 <!-- Response -->
