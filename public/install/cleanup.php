@@ -2,6 +2,12 @@
 
 $basePath = realpath(__DIR__.'/../..');
 if (! $basePath || ! file_exists($basePath.'/artisan')) {
+    $basePath = realpath(__DIR__.'/../../laravel');
+}
+if (! $basePath || ! file_exists($basePath.'/artisan')) {
+    $basePath = realpath(__DIR__.'/../laravel');
+}
+if (! $basePath || ! file_exists($basePath.'/artisan')) {
     $basePath = realpath(__DIR__.'/..');
 }
 $lockPath = $basePath ? $basePath.'/storage/installer.lock' : '';
