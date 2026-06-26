@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
+
 session_start();
 
 function admintoolResolveBasePath(string $currentDirectory): string
@@ -79,79 +83,84 @@ function admintoolFunctionAvailable(string $functionName): bool
     return ! in_array($functionName, $disabledFunctions, true);
 }
 
-/**
- * @param  list<string>  $command
- */
-function admintoolBuildShellCommand(array $command): string
+function admintoolPhpBinary(): string
 {
-    return implode(' ', array_map('escapeshellarg', $command));
+    foreach ([PHP_BINARY, 'php', '/opt/cpanel/ea-php83/root/usr/bin/php', '/opt/cpanel/ea-php82/root/usr/bin/php', '/usr/local/bin/php', '/usr/bin/php'] as $binary) {
+        if (! admintoolFunctionAvailable('shell_exec')) {
+            break;
+        }
+
+        $output = @shell_exec('"'.$binary.'" --version 2>&1');
+
+        if (is_string($output) && str_contains($output, 'PHP')) {
+            return $binary;
+        }
+    }
+
+    return PHP_BINARY;
+}
+
+function admintoolBootArtisanKernel(string $basePath): Kernel
+{
+    static $kernel = null;
+
+    if ($kernel instanceof Kernel) {
+        return $kernel;
+    }
+
+    require_once $basePath.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+
+    /** @var Application $app */
+    $app = require $basePath.DIRECTORY_SEPARATOR.'bootstrap'.DIRECTORY_SEPARATOR.'app.php';
+
+    $kernel = $app->make(Kernel::class);
+    $kernel->bootstrap();
+
+    return $kernel;
 }
 
 /**
  * @param  list<string>  $arguments
  * @return array{exit_code: int, output: string}
  */
-function admintoolRunArtisan(string $phpBinary, string $artisanPath, array $arguments): array
+function admintoolRunArtisan(string $basePath, string $artisanPath, array $arguments): array
 {
-    $command = array_merge([$phpBinary, $artisanPath], $arguments);
-    $workingDirectory = dirname($artisanPath);
+    $command = array_shift($arguments);
 
-    if (admintoolFunctionAvailable('proc_open')) {
-        $descriptorSpec = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
-        ];
-
-        $process = proc_open($command, $descriptorSpec, $pipes, $workingDirectory);
-
-        if (is_resource($process)) {
-            fclose($pipes[0]);
-
-            $output = stream_get_contents($pipes[1]);
-            $errorOutput = stream_get_contents($pipes[2]);
-
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-
-            $exitCode = proc_close($process);
-
-            return [
-                'exit_code' => $exitCode,
-                'output' => trim((string) $output.PHP_EOL.(string) $errorOutput),
-            ];
-        }
-    }
-
-    $shellCommand = admintoolBuildShellCommand($command);
-
-    if (admintoolFunctionAvailable('exec')) {
-        $currentDirectory = getcwd();
-        $outputLines = [];
-        $exitCode = 1;
-
-        chdir($workingDirectory);
-        exec($shellCommand.' 2>&1', $outputLines, $exitCode);
-
-        if ($currentDirectory !== false) {
-            chdir($currentDirectory);
-        }
-
+    if (! is_string($command) || $command === '') {
         return [
-            'exit_code' => $exitCode,
-            'output' => trim(implode(PHP_EOL, $outputLines)),
+            'exit_code' => 1,
+            'output' => 'Command artisan tidak valid.',
         ];
     }
 
     if (admintoolFunctionAvailable('shell_exec')) {
-        $currentDirectory = getcwd();
+        $phpBinary = admintoolPhpBinary();
+        $cli = escapeshellarg($command);
 
-        chdir($workingDirectory);
-        $output = shell_exec($shellCommand.' 2>&1');
+        foreach ($arguments as $argument) {
+            if (! is_string($argument) || $argument === '') {
+                continue;
+            }
 
-        if ($currentDirectory !== false) {
-            chdir($currentDirectory);
+            if (! str_starts_with($argument, '--')) {
+                $cli .= ' '.escapeshellarg($argument);
+
+                continue;
+            }
+
+            [$key, $value] = array_pad(explode('=', $argument, 2), 2, null);
+
+            if ($value === null) {
+                $cli .= ' '.$key;
+
+                continue;
+            }
+
+            $cli .= ' '.$key.'='.escapeshellarg($value);
         }
+
+        $output = @shell_exec('"'.$phpBinary.'" '.escapeshellarg($artisanPath).' '.$cli.' 2>&1');
 
         return [
             'exit_code' => $output === null ? 1 : 0,
@@ -159,10 +168,38 @@ function admintoolRunArtisan(string $phpBinary, string $artisanPath, array $argu
         ];
     }
 
-    return [
-        'exit_code' => 1,
-        'output' => 'Semua fungsi eksekusi command dinonaktifkan di server ini (proc_open, exec, shell_exec). Hubungi hosting atau aktifkan salah satu fungsi tersebut.',
-    ];
+    try {
+        admintoolBootArtisanKernel($basePath);
+
+        $artisanArguments = [];
+
+        foreach ($arguments as $argument) {
+            if (! is_string($argument) || $argument === '') {
+                continue;
+            }
+
+            if (! str_starts_with($argument, '--')) {
+                $artisanArguments[] = $argument;
+
+                continue;
+            }
+
+            [$key, $value] = array_pad(explode('=', $argument, 2), 2, null);
+            $artisanArguments[$key] = $value ?? true;
+        }
+
+        $exitCode = Artisan::call($command, $artisanArguments);
+
+        return [
+            'exit_code' => $exitCode,
+            'output' => trim((string) Artisan::output()),
+        ];
+    } catch (Throwable $exception) {
+        return [
+            'exit_code' => 1,
+            'output' => 'artisan call failed: '.$exception->getMessage(),
+        ];
+    }
 }
 
 /**
@@ -461,7 +498,7 @@ if ($isAuthenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['c
             'output' => 'File artisan tidak ditemukan.',
         ];
     } else {
-        $result = admintoolRunArtisan(PHP_BINARY, $artisanPath, $commands[$selectedCommand]['arguments']);
+        $result = admintoolRunArtisan($basePath, $artisanPath, $commands[$selectedCommand]['arguments']);
     }
 }
 
