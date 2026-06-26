@@ -50,4 +50,28 @@ class LicenseController extends Controller
             ],
         ]);
     }
+
+    public function getAutoLicense(): JsonResponse
+    {
+        $license = License::query()
+            ->latest('created_at')
+            ->first();
+
+        if (! $license instanceof License) {
+            return response()->json([
+                'status' => false,
+                'message' => 'License not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Success',
+            'data' => [
+                'status' => $license->is_active,
+                'is_active' => $license->is_active,
+                'code' => $license->code,
+            ],
+        ]);
+    }
 }

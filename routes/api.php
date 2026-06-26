@@ -38,6 +38,7 @@ Route::middleware(['license'])->prefix('v1')->group(function () {
 
 Route::middleware(['registered.server.ip', 'license'])->prefix('v1')->group(function () {
     Route::get('/get-license', [ApiV1LicenseController::class, 'index']);
+    Route::get('/get-auto-license', [ApiV1LicenseController::class, 'getAutoLicense']);
 });
 
 Route::middleware('public.ai.signature')->prefix('v1')->group(function () {

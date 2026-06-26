@@ -208,3 +208,27 @@ test('get-license route accepts registered server ip addresses', function () {
         ->assertJsonPath('data.code', $license->code)
         ->assertJsonPath('data.is_active', true);
 });
+
+test('get-auto-license route returns latest license code for registered server ip addresses', function () {
+    License::factory()->create([
+        'code' => 'APICO-LICENSE-0003',
+        'created_at' => now()->subMinute(),
+        'expires_at' => now()->addDay(),
+    ]);
+    $latestLicense = License::factory()->create([
+        'code' => 'APICO-LICENSE-0004',
+        'created_at' => now(),
+        'expires_at' => now()->addDay(),
+    ]);
+    Server::factory()->create([
+        'server_ip' => '192.168.10.20',
+    ]);
+
+    $this->withServerVariables(['REMOTE_ADDR' => '192.168.10.20'])
+        ->withHeader('License', $latestLicense->code)
+        ->getJson('/api/v1/get-auto-license')
+        ->assertOk()
+        ->assertJsonPath('status', true)
+        ->assertJsonPath('data.code', $latestLicense->code)
+        ->assertJsonPath('data.is_active', true);
+});
