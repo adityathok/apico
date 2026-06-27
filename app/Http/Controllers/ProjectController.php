@@ -70,9 +70,9 @@ class ProjectController extends Controller
 
         $syncedProject = $githubService->syncGithubProjectRelease($project->id);
 
-        if (! $syncedProject instanceof Project) {
+        if (! $syncedProject) {
             return response()->json([
-                'message' => 'Unable to sync the latest GitHub release for this project.',
+                'message' => $githubService->lastSyncError() ?? 'Unable to sync GitHub release for project ID '.$project->id.'.',
             ], 422);
         }
 

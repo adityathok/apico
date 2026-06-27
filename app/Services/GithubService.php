@@ -15,6 +15,8 @@ class GithubService
 
     protected string $baseUrl;
 
+    protected ?string $lastSyncError = null;
+
     public function __construct()
     {
         $this->token = config('services.github.token');
@@ -67,21 +69,40 @@ class GithubService
 
     public function syncGithubProjectRelease(int $projectId): ?Project
     {
+        $this->lastSyncError = null;
         $project = Project::query()->find($projectId);
 
-        if (! $project instanceof Project || blank($project->github_url)) {
+        if (! $project instanceof Project) {
+            $this->lastSyncError = 'Project not found.';
+
+            return null;
+        }
+
+        if (blank($project->github_url)) {
+            $this->lastSyncError = 'Project has no GitHub URL.';
+
             return null;
         }
 
         $repository = $this->parseRepositoryFromUrl($project->github_url);
 
         if ($repository === null) {
+            $this->lastSyncError = 'GitHub URL format is invalid.';
+
             return null;
         }
 
         $release = $this->getLatestRelease($repository['owner'], $repository['repo']);
 
-        if ($release === null || blank($release['version_tag'])) {
+        if ($release === null) {
+            $this->lastSyncError = 'Latest release not found or GitHub API failed.';
+
+            return null;
+        }
+
+        if (blank($release['version_tag'])) {
+            $this->lastSyncError = 'Latest release has no version tag.';
+
             return null;
         }
 
@@ -92,6 +113,8 @@ class GithubService
             $packageFile = $this->downloadReleasePackage($project, $release);
 
             if ($packageFile === null) {
+                $this->lastSyncError = 'Release package download failed.';
+
                 return null;
             }
 
@@ -119,6 +142,11 @@ class GithubService
         ])->get("{$this->baseUrl}/repos/{$owner}/{$repo}");
 
         return $response->status() === 404;
+    }
+
+    public function lastSyncError(): ?string
+    {
+        return $this->lastSyncError;
     }
 
     /**
