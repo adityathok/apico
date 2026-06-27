@@ -184,6 +184,18 @@ class GithubService
             ->get("{$this->baseUrl}/{$path}");
     }
 
+    private function githubDownloadRequest(string $downloadUrl): Response
+    {
+        return Http::withHeaders([
+            'Accept' => 'application/octet-stream',
+        ])
+            ->when(
+                filled($this->token),
+                fn ($request) => $request->withToken($this->token),
+            )
+            ->get($downloadUrl);
+    }
+
     /**
      * @param  array{
      *     version_tag: string|null,
@@ -203,14 +215,7 @@ class GithubService
             return null;
         }
 
-        $response = Http::withHeaders([
-            'Accept' => 'application/octet-stream',
-        ])
-            ->when(
-                filled($this->token),
-                fn ($request) => $request->withToken($this->token),
-            )
-            ->get($downloadUrl);
+        $response = $this->githubDownloadRequest($downloadUrl);
 
         if ($response->failed()) {
             return null;

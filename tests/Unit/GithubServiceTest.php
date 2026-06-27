@@ -48,6 +48,8 @@ test('github service syncs the latest release into the project version and packa
 test('github service uploads the latest release package for a private repository', function () {
     Storage::fake('public');
 
+    config(['services.github.token' => 'test-token']);
+
     $project = Project::factory()->create([
         'name' => 'Velocity Addons',
         'github_url' => 'https://github.com/example/private-addons',
@@ -88,6 +90,11 @@ test('github service uploads the latest release package for a private repository
     Storage::disk('public')->assertMissing('project-packages/velocity-addons/old-package.zip');
     Storage::disk('public')->assertExists('project-packages/velocity-addons/velocity-addons-private.zip');
     expect(Storage::disk('public')->get('project-packages/velocity-addons/velocity-addons-private.zip'))->toBe('zip-binary-content');
+
+    Http::assertSent(function ($request): bool {
+        return $request->url() === 'https://github.com/example/private-addons/releases/download/2.5.0/velocity-addons-private.zip'
+            && $request->hasHeader('Authorization', 'Bearer test-token');
+    });
 });
 
 test('github service does not sync a project without github url', function () {
