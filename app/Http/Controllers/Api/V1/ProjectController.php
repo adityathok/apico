@@ -125,6 +125,8 @@ class ProjectController extends Controller
             'plugin_wp_required' => ['nullable', 'boolean'],
             'github_url' => ['nullable', 'url', 'max:255'],
             'package_external_url' => ['nullable', 'url', 'max:255'],
+            'icon' => ['nullable', 'string', 'max:255'],
+            'screenshot' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'type' => ['sometimes', 'required', Rule::in($supportedTypes)],
             'package_file' => ['nullable', 'file', 'mimes:zip', 'max:51200'],

@@ -344,6 +344,8 @@ test('public project show returns a project by slug', function () {
         'version' => '2.3.0',
         'package_file' => 'project-packages/velocity-addons/velocity-addons-2-3-0.zip',
         'package_external_url' => 'https://downloads.example.com/velocity-addons.zip',
+        'icon' => 'uploads/projects/velocity-addons/icon.png',
+        'screenshot' => 'uploads/projects/velocity-addons/screenshot.png',
     ]);
 
     $response = $this->withHeader('signature', md5(now()->format('dmY')))
@@ -451,6 +453,8 @@ test('public github webhook can sync project release', function () {
         ->assertJsonPath('data.id', $project->id)
         ->assertJsonPath('data.version', '2.4.0')
         ->assertJsonPath('data.package_external_url', null)
+        ->assertJsonPath('data.icon', 'uploads/projects/velocity-addons/icon.png')
+        ->assertJsonPath('data.screenshot', 'uploads/projects/velocity-addons/screenshot.png')
         ->assertJsonPath('data.package_file', 'project-packages/velocity-addons/velocity-addons-2-4-0.zip');
 
     Carbon::setTestNow();

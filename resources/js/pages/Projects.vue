@@ -70,6 +70,8 @@ type ProjectFormState = {
     plugin_wp_required: boolean;
     github_url: string;
     package_external_url: string;
+    icon: string;
+    screenshot: string;
     description: string;
     type: ProjectType;
     parent_id: string;
@@ -471,6 +473,14 @@ const buildPayload = (): FormData => {
 
     if (packageExternalUrl !== null) {
         payload.append('package_external_url', packageExternalUrl);
+    }
+
+    if (icon !== null) {
+        payload.append('icon', icon);
+    }
+
+    if (screenshot !== null) {
+        payload.append('screenshot', screenshot);
     }
 
     if (description !== null) {
@@ -1085,15 +1095,45 @@ watch(isChangelogModalOpen, (open) => {
                         </UFormField>
                     </div>
 
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <UFormField
+                            name="package_external_url"
+                            label="Package External URL"
+                            hint="Optional"
+                            :error="fieldError('package_external_url')"
+                        >
+                            <UInput
+                                v-model="state.package_external_url"
+                                placeholder="https://example.com/downloads/package.zip"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+
+                        <UFormField
+                            name="icon"
+                            label="Icon"
+                            hint="Optional"
+                            :error="fieldError('icon')"
+                        >
+                            <UInput
+                                v-model="state.icon"
+                                placeholder="uploads/projects/icon.png"
+                                :disabled="isSaving"
+                                class="w-full"
+                            />
+                        </UFormField>
+                    </div>
+
                     <UFormField
-                        name="package_external_url"
-                        label="Package External URL"
+                        name="screenshot"
+                        label="Screenshot"
                         hint="Optional"
-                        :error="fieldError('package_external_url')"
+                        :error="fieldError('screenshot')"
                     >
                         <UInput
-                            v-model="state.package_external_url"
-                            placeholder="https://example.com/downloads/package.zip"
+                            v-model="state.screenshot"
+                            placeholder="uploads/projects/screenshot.png"
                             :disabled="isSaving"
                             class="w-full"
                         />

@@ -30,6 +30,8 @@ class ProjectFactory extends Factory
             'github_url' => fake()->optional()->url(),
             'package_file' => fake()->optional()->filePath(),
             'package_external_url' => fake()->optional()->url(),
+            'icon' => fake()->optional()->filePath(),
+            'screenshot' => fake()->optional()->filePath(),
             'description' => fake()->optional()->sentence(),
             'type' => fake()->randomElement([
                 'project_internal',

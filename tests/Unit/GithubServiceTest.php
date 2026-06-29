@@ -75,7 +75,7 @@ test('github service uploads the latest release package for a private repository
                 ],
             ],
         ], 200),
-        'https://api.github.com/repos/assets/987654' => Http::response('zip-binary-content', 200),
+        'https://api.github.com/repos/example/private-addons/releases/assets/987654' => Http::response('zip-binary-content', 200),
     ]);
 
     $syncedProject = app(GithubService::class)->syncGithubProjectRelease($project->id);
@@ -93,7 +93,7 @@ test('github service uploads the latest release package for a private repository
     expect(Storage::disk('public')->get('project-packages/velocity-addons/velocity-addons-private.zip'))->toBe('zip-binary-content');
 
     Http::assertSent(function ($request): bool {
-        return $request->url() === 'https://api.github.com/repos/assets/987654'
+        return $request->url() === 'https://api.github.com/repos/example/private-addons/releases/assets/987654'
             && $request->hasHeader('Authorization', 'Bearer test-token')
             && $request->hasHeader('Accept', 'application/octet-stream');
     });
@@ -200,14 +200,14 @@ test('github service returns specific error when private asset download fails', 
                 ],
             ],
         ], 200),
-        'https://api.github.com/repos/assets/987654' => Http::response([], 403),
+        'https://api.github.com/repos/example/private-addons/releases/assets/987654' => Http::response([], 403),
     ]);
 
     $service = app(GithubService::class);
     $syncedProject = $service->syncGithubProjectRelease($project->id);
 
     expect($syncedProject)->toBeNull()
-        ->and($service->lastSyncError())->toBe('GitHub asset download failed with status 403.');
+        ->and($service->lastSyncError())->toBe('GitHub asset download asset id 987654 failed with status 403.');
 });
 
 test('github service identifies a repository as private when github returns 404 without token', function () {

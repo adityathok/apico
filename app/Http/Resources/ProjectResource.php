@@ -29,6 +29,8 @@ class ProjectResource extends JsonResource
             'package_file' => $this->package_file,
             'package_file_url' => $this->packageFileUrl(),
             'package_external_url' => $this->package_external_url,
+            'icon' => $this->icon,
+            'screenshot' => $this->screenshot,
             'description' => $this->description,
             'type' => $this->type,
             'parent_id' => $this->parent_id,

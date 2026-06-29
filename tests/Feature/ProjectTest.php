@@ -78,6 +78,8 @@ test('authenticated users can view projects from the controller', function () {
         'github_url' => 'https://github.com/example/client-child-theme',
         'package_file' => 'project-packages/client-child-theme/client-child-theme-v1-4-2.zip',
         'package_external_url' => 'https://example.com/downloads/client-child-theme.zip',
+        'icon' => 'uploads/projects/client-child-theme/icon.png',
+        'screenshot' => 'uploads/projects/client-child-theme/screenshot.png',
         'description' => 'Child theme for a client project.',
     ]);
 
@@ -228,6 +230,8 @@ test('authenticated users can update a project', function () {
             'requires_php' => '8.2',
             'plugin_wp_required' => true,
             'package_external_url' => 'https://downloads.example.com/updated-project.zip',
+            'icon' => 'uploads/projects/updated-project/icon.png',
+            'screenshot' => 'uploads/projects/updated-project/screenshot.png',
             'package_file' => $replacementPackage,
         ])
         ->assertOk()
@@ -238,6 +242,8 @@ test('authenticated users can update a project', function () {
         ->assertJsonPath('data.plugin_wp_required', null)
         ->assertJsonPath('data.type', 'project_client')
         ->assertJsonPath('data.version', '3.0.0')
+        ->assertJsonPath('data.icon', 'uploads/projects/updated-project/icon.png')
+        ->assertJsonPath('data.screenshot', 'uploads/projects/updated-project/screenshot.png')
         ->assertJsonPath('data.parent.id', $newParent->id);
 
     $this->assertDatabaseHas('projects', [
