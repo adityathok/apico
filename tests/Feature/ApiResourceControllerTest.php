@@ -441,11 +441,7 @@ test('public github webhook can sync project release', function () {
 
     app()->instance(GithubService::class, $service);
 
-    $signature = hash_hmac(
-        'sha256',
-        Carbon::now('Asia/Jakarta')->format('dmY'),
-        'test-webhook-secret',
-    );
+    $signature = md5('test-webhook-secret');
 
     $this->withHeader('X-Signature', $signature)
         ->post("/api/v1/release-project/{$project->slug}")
@@ -470,11 +466,7 @@ test('public github webhook returns validation error when project has no github 
         'github_url' => null,
     ]);
 
-    $signature = hash_hmac(
-        'sha256',
-        Carbon::now('Asia/Jakarta')->format('dmY'),
-        'test-webhook-secret',
-    );
+    $signature = md5('test-webhook-secret');
 
     $this->withHeader('X-Signature', $signature)
         ->post("/api/v1/release-project/{$project->slug}")
@@ -491,11 +483,7 @@ test('public project update returns not found for unknown slug', function () {
     $_ENV['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
     $_SERVER['RELEASE_WEBHOOK_SECRET'] = 'test-webhook-secret';
 
-    $signature = hash_hmac(
-        'sha256',
-        Carbon::now('Asia/Jakarta')->format('dmY'),
-        'test-webhook-secret',
-    );
+    $signature = md5('test-webhook-secret');
 
     $this->withHeader('X-Signature', $signature)
         ->post('/api/v1/release-project/missing-project', [

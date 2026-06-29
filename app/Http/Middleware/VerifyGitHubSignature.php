@@ -35,11 +35,7 @@ class VerifyGitHubSignature
             return $response;
         }
 
-        $expectedSignature = hash_hmac(
-            'sha256',
-            Carbon::now('Asia/Jakarta')->format('dmY'),
-            (string) env('RELEASE_WEBHOOK_SECRET'),
-        );
+        $expectedSignature = md5((string) env('RELEASE_WEBHOOK_SECRET'));
 
         if (! hash_equals($expectedSignature, $signature)) {
             $response = new JsonResponse([

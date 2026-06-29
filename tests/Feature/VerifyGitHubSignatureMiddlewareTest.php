@@ -51,13 +51,7 @@ test('github webhook route rejects an invalid x-signature header', function () {
 });
 
 test('github webhook route accepts a valid x-signature header', function () {
-    Carbon::setTestNow('2026-06-22 12:00:00');
-
-    $signature = hash_hmac(
-        'sha256',
-        Carbon::now('Asia/Jakarta')->format('dmY'),
-        'test-webhook-secret',
-    );
+    $signature = md5('test-webhook-secret');
 
     $this->withHeader('X-Signature', $signature)
         ->postJson('/api/github/webhook/ping')
@@ -81,11 +75,7 @@ test('github webhook route logs downstream http exceptions', function () {
 
     Route::post('/api/github/webhook/fail', fn () => abort(409))->middleware('github.signature');
 
-    $signature = hash_hmac(
-        'sha256',
-        Carbon::now('Asia/Jakarta')->format('dmY'),
-        'test-webhook-secret',
-    );
+    $signature = md5('test-webhook-secret');
 
     $this->withHeader('X-Signature', $signature)
         ->postJson('/api/github/webhook/fail')
