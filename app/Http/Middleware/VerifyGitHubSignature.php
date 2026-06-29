@@ -61,16 +61,32 @@ class VerifyGitHubSignature
         return $response;
     }
 
-    private function logRequest(Request $request, int $status): void
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function logRequest(Request $request, int $status, array $extra = []): void
     {
         RequestLog::create([
             'route' => $request->getPathInfo(),
             'method' => $request->method(),
-            'request' => $request->input(),
+            'request' => array_merge($request->input(), $extra),
             'status' => $status,
             'website_id' => null,
             'license_id' => null,
         ]);
+    }
+
+    private function maskSignature(string $signature): string
+    {
+        if ($signature === '') {
+            return '';
+        }
+
+        if (strlen($signature) <= 8) {
+            return $signature;
+        }
+
+        return substr($signature, 0, 4) . '...' . substr($signature, -4);
     }
 
     private function statusCodeForException(Throwable $exception): int
