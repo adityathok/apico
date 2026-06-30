@@ -11,6 +11,7 @@ use App\Http\Controllers\ProjectChangelogController;
 use App\Http\Controllers\RequestLogController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\WebsiteController;
+use App\Http\Controllers\ArticleGeneratorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,7 @@ Route::middleware(['license'])->prefix('v1')->group(function () {
     Route::get('/news/categories', [ApiV1NewsController::class, 'categories']);
     Route::get('/news/posts', [ApiV1NewsController::class, 'posts']);
     Route::get('/license', [ApiV1LicenseController::class, 'index']);
+    Route::post('/article-generator', [ArticleGeneratorController::class, 'generate']);
 });
 
 Route::middleware('registered.server.ip')->prefix('v1')->group(function () {
