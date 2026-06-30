@@ -66,7 +66,7 @@ class AiProviderService
      * @param  bool  $stream  Whether to stream the response
      * @return array|null Decoded JSON response, or null on failure
      */
-    public function chat(string $prompt, string $content, bool $stream = false): ?array
+    public function chat(string $prompt, string $content, bool $stream = false): ?string
     {
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . config('services.ai_provider.key'),
@@ -78,13 +78,18 @@ class AiProviderService
                 ['role' => 'user', 'content' => $content],
             ],
             'stream' => $stream,
-            // 'response_format' => ['type' => 'json_object'],
         ]);
 
         if ($response->successful()) {
-            $contentString = $response->json();
+            $contentString = $response->json()['choices'][0]['message']['content'];
 
-            return json_decode($contentString, true);
+            $decoded = json_decode($contentString, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+
+            return $contentString;
         }
 
         return null;

@@ -1,11 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AiProviderController as ApiV1AiProviderController;
 use App\Http\Controllers\Api\V1\LicenseController as ApiV1LicenseController;
 use App\Http\Controllers\Api\V1\NewsController as ApiV1NewsController;
 use App\Http\Controllers\Api\V1\ProjectController as ApiV1ProjectController;
 use App\Http\Controllers\Api\V1\TgmPluginController as ApiV1TgmPluginController;
-use App\Http\Controllers\Api\V1\AiProviderController as ApiV1AiProviderController;
-
 use App\Http\Controllers\ArticleGeneratorController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\LicenseController;
