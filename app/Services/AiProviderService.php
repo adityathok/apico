@@ -21,9 +21,9 @@ class AiProviderService
     {
         // 1. Kirim POST request ke API Anda
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('services.ai_provider.key'),
+            'Authorization' => 'Bearer ' . config('services.ai_provider.key'),
             'Content-Type' => 'application/json',
-        ])->post(config('services.ai_provider.url').'/chat/completions', [
+        ])->post(config('services.ai_provider.url') . '/chat/completions', [
             'model' => config('services.ai_provider.model'),
             'messages' => [
                 [
@@ -32,7 +32,7 @@ class AiProviderService
                 ],
                 [
                     'role' => 'user',
-                    'content' => 'Buatkan artikel menarik tentang: '.$topic,
+                    'content' => 'Buatkan artikel menarik tentang: ' . $topic,
                 ],
             ],
             'stream' => $stream,
@@ -69,20 +69,20 @@ class AiProviderService
     public function chat(string $prompt, string $content, bool $stream = false): ?array
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('services.ai_provider.key'),
+            'Authorization' => 'Bearer ' . config('services.ai_provider.key'),
             'Content-Type' => 'application/json',
-        ])->post(config('services.ai_provider.url').'/chat/completions', [
+        ])->post(config('services.ai_provider.url') . '/chat/completions', [
             'model' => config('services.ai_provider.model'),
             'messages' => [
                 ['role' => 'system', 'content' => $prompt],
                 ['role' => 'user', 'content' => $content],
             ],
             'stream' => $stream,
-            'response_format' => ['type' => 'json_object'],
+            // 'response_format' => ['type' => 'json_object'],
         ]);
 
         if ($response->successful()) {
-            $contentString = $response->json()['choices'][0]['message']['content'];
+            $contentString = $response->json();
 
             return json_decode($contentString, true);
         }
