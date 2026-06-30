@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\RequestLog;
-use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
@@ -86,7 +85,7 @@ class VerifyGitHubSignature
             return $signature;
         }
 
-        return substr($signature, 0, 4) . '...' . substr($signature, -4);
+        return substr($signature, 0, 4).'...'.substr($signature, -4);
     }
 
     private function statusCodeForException(Throwable $exception): int

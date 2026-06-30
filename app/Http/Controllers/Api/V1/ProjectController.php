@@ -58,7 +58,7 @@ class ProjectController extends Controller
         if (! $syncedProject instanceof Project) {
             return response()->json([
                 'status' => false,
-                'message' => $githubService->lastSyncError() ?? 'Unable to sync GitHub release for project ID ' . $project->id . '.',
+                'message' => $githubService->lastSyncError() ?? 'Unable to sync GitHub release for project ID '.$project->id.'.',
             ], 422);
         }
 
@@ -193,8 +193,8 @@ class ProjectController extends Controller
         $name = $request->input('name');
         $version = $request->input('version');
         $file = $request->file('package_file');
-        $fileName = Str::slug($name) . '-' . Str::slug($version) . '.' . $file->getClientOriginalExtension();
-        $folder = 'project-packages/' . Str::slug($name);
+        $fileName = Str::slug($name).'-'.Str::slug($version).'.'.$file->getClientOriginalExtension();
+        $folder = 'project-packages/'.Str::slug($name);
 
         return $file->storeAs($folder, $fileName, 'public');
     }
@@ -215,9 +215,9 @@ class ProjectController extends Controller
         }
 
         $slug = Str::slug((string) $request->input('slug', 'project'));
-        $folder = 'project-images/' . $slug;
+        $folder = 'project-images/'.$slug;
         $file = $request->file($field);
-        $fileName = $field . '.' . $file->getClientOriginalExtension();
+        $fileName = $field.'.'.$file->getClientOriginalExtension();
 
         return $file->storeAs($folder, $fileName, 'public');
     }
@@ -235,7 +235,7 @@ class ProjectController extends Controller
     {
         $data = ProjectResource::make($project)->resolve($request);
         $downloadUrl = $data['package_external_url'] ?: $data['package_file_url'];
-        $changelogUrl = url('project/changelog/' . $project->slug);
+        $changelogUrl = url('project/changelog/'.$project->slug);
 
         return response()->json([
             'status' => true,

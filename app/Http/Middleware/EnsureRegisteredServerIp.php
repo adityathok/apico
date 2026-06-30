@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\License;
 use App\Models\RequestLog;
 use App\Models\Server;
 use App\Models\Website;

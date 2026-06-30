@@ -163,7 +163,7 @@ test('api requests are logged when the endpoint throws an exception', function (
         'expires_at' => now()->addDay(),
     ]);
 
-    Route::get('/api/v1/failing-request', fn() => throw new RuntimeException('Endpoint failed.'))
+    Route::get('/api/v1/failing-request', fn () => throw new RuntimeException('Endpoint failed.'))
         ->middleware('license');
 
     $this->withHeader('License', $license->code)

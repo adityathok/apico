@@ -74,7 +74,7 @@ class ProjectController extends Controller
 
         if (! $syncedProject) {
             return response()->json([
-                'message' => $githubService->lastSyncError() ?? 'Unable to sync GitHub release for project ID ' . $project->id . '.',
+                'message' => $githubService->lastSyncError() ?? 'Unable to sync GitHub release for project ID '.$project->id.'.',
             ], 422);
         }
 
@@ -248,10 +248,10 @@ class ProjectController extends Controller
         $file = $request->file('package_file');
 
         // 2. Tentukan nama file baru (contoh: nama-package-v1.0.0.zip)
-        $fileName = Str::slug($name) . '-' . Str::slug($version) . '.' . $file->getClientOriginalExtension();
+        $fileName = Str::slug($name).'-'.Str::slug($version).'.'.$file->getClientOriginalExtension();
 
         // 3. Tentukan folder tujuan
-        $folder = 'project-packages/' . Str::slug($name);
+        $folder = 'project-packages/'.Str::slug($name);
 
         // 4. Simpan dengan nama baru menggunakan storeAs
         $path = $file->storeAs($folder, $fileName, 'public');
@@ -275,9 +275,9 @@ class ProjectController extends Controller
         }
 
         $slug = Str::slug((string) $request->input('slug', 'project'));
-        $folder = 'project-images/' . $slug;
+        $folder = 'project-images/'.$slug;
         $file = $request->file($field);
-        $fileName = $field . '.' . $file->getClientOriginalExtension();
+        $fileName = $field.'.'.$file->getClientOriginalExtension();
 
         return $file->storeAs($folder, $fileName, 'public');
     }

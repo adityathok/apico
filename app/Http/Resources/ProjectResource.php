@@ -38,7 +38,7 @@ class ProjectResource extends JsonResource
             'parent_id' => $this->parent_id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'parent' => $this->whenLoaded('parent', fn(): ?array => $this->parent?->only([
+            'parent' => $this->whenLoaded('parent', fn (): ?array => $this->parent?->only([
                 'id',
                 'name',
             ])),

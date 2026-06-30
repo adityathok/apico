@@ -8,7 +8,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use GuzzleHttp\Client;
 
 class GithubService
 {
@@ -181,7 +180,7 @@ class GithubService
         ])
             ->when(
                 filled($this->token),
-                fn($request) => $request->withToken($this->token),
+                fn ($request) => $request->withToken($this->token),
             )
             ->timeout(600)
             ->get("{$this->baseUrl}/{$path}");
@@ -223,7 +222,7 @@ class GithubService
         $response = $this->githubAssetDownloadRequest($assetId, $repository);
 
         if ($response->failed()) {
-            $this->lastSyncError = "GitHub asset download asset id {$assetId} failed with status " . $response->status() . '.';
+            $this->lastSyncError = "GitHub asset download asset id {$assetId} failed with status ".$response->status().'.';
 
             return null;
         }
@@ -231,9 +230,9 @@ class GithubService
         $this->deleteStoredPackageFile($project);
 
         $fileName = $asset['file_name']
-            ?? Str::slug($project->name) . '-' . Str::slug((string) $release['version_tag']) . '.zip';
-        $folder = 'project-packages/' . Str::slug($project->name);
-        $path = $folder . '/' . $fileName;
+            ?? Str::slug($project->name).'-'.Str::slug((string) $release['version_tag']).'.zip';
+        $folder = 'project-packages/'.Str::slug($project->name);
+        $path = $folder.'/'.$fileName;
 
         Storage::disk('public')->put($path, $response->body());
 
