@@ -25,10 +25,11 @@ import {
     websites,
     requestlogsIndex,
     docsApi,
+    beaverBuilderLayouts,
 } from '@/routes';
 import {
     FileText,
-    FolderGit2,
+    SquareCode,
     LayoutGrid,
     BookOpen,
     FolderKanban,
@@ -84,6 +85,11 @@ const mainNavItems: NavItem[] = [
         title: 'Websites',
         href: websites(),
         icon: Globe,
+    },
+    {
+        title: 'Beaver Builder Layouts',
+        href: beaverBuilderLayouts(),
+        icon: SquareCode,
     },
     {
         title: 'Servers',

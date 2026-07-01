@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('admin/licenses', 'Licenses')->name('licenses');
     Route::inertia('admin/websites', 'Websites')->name('websites');
     Route::inertia('admin/servers', 'Servers')->name('servers');
+    Route::inertia('admin/beaver-builder-layouts', 'BeaverBuilderLayouts')->name('beaver-builder-layouts');
     Route::get('admin/system/update', [UpdateController::class, 'page'])->name('system.update');
     Route::get('admin/system/check-updates', [UpdateController::class, 'checkUpdates'])->name('system.check-updates');
     Route::post('admin/system/perform-update', [UpdateController::class, 'performUpdate'])->name('system.perform-update');
