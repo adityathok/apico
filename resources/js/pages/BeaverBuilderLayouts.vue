@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import type { FormError, FormSubmitEvent, TableColumn } from '@nuxt/ui';
 import axios, { AxiosError } from 'axios';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import BeaverBuilderTemplateCategory from '@/components/BeaverBuilderTemplateCategory.vue';
 
 type Category = {
     id: number;
@@ -140,6 +141,8 @@ const screenshotFile = ref<File | null>(null);
 const screenshotPreview = ref<string | null>(null);
 const removeScreenshot = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const isCategoryModalOpen = ref(false);
+const categoryComponentRef = ref<InstanceType<typeof BeaverBuilderTemplateCategory> | null>(null);
 
 const isEditing = computed(() => editingLayoutId.value !== null);
 const modalTitle = computed(() =>
@@ -539,6 +542,14 @@ onMounted(() => {
                     @click="openCreateModal"
                 />
                 <UButton
+                    icon="i-lucide-tags"
+                    label="Kelola Kategori"
+                    color="neutral"
+                    variant="outline"
+                    :disabled="isLoading"
+                    @click="isCategoryModalOpen = true"
+                />
+                <UButton
                     icon="i-lucide-refresh-cw"
                     color="neutral"
                     variant="outline"
@@ -836,6 +847,24 @@ onMounted(() => {
                     color="error"
                     :loading="isDeleting"
                     @click="deleteLayout"
+                />
+            </template>
+        </UModal>
+
+        <UModal
+            v-model:open="isCategoryModalOpen"
+            :ui="{
+                body: 'p-0',
+                footer: 'hidden',
+                content: 'min-w-5xl',
+            }"
+        >
+            <template #body>
+                <BeaverBuilderTemplateCategory
+                    ref="categoryComponentRef"
+                    :categories="categories"
+                    :selected-category-ids="selectedCategoryIds"
+                    @update:selected-category-ids="selectedCategoryIds = $event"
                 />
             </template>
         </UModal>
