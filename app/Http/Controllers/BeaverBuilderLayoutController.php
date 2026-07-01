@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class BeaverBuilderLayoutController extends Controller
@@ -27,11 +29,17 @@ class BeaverBuilderLayoutController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['theme-layout', 'template-layout', 'row', 'module'])],
             'content' => ['required', 'string'],
-            'meta' => ['nullable', 'array'],
-            'screenshot' => ['nullable', 'string', 'max:255'],
+            'meta' => ['nullable'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:beaver_builder_template_categories,id'],
         ]);
+
+        $validated['meta'] = $this->decodeMeta($validated['meta'] ?? null);
+
+        $screenshot = $this->handleScreenshotUpload($request);
+        if ($screenshot !== null) {
+            $validated['screenshot'] = $screenshot;
+        }
 
         $layout = BeaverBuilderLayout::create(Arr::except($validated, ['category_ids']));
         $layout->categories()->sync($validated['category_ids'] ?? []);
@@ -50,11 +58,17 @@ class BeaverBuilderLayoutController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', Rule::in(['theme-layout', 'template-layout', 'row', 'module'])],
             'content' => ['sometimes', 'required', 'string'],
-            'meta' => ['nullable', 'array'],
-            'screenshot' => ['nullable', 'string', 'max:255'],
+            'meta' => ['nullable'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:beaver_builder_template_categories,id'],
         ]);
+
+        $validated['meta'] = $this->decodeMeta($validated['meta'] ?? null);
+
+        $screenshot = $this->handleScreenshotUpload($request, $beaverBuilderLayout->screenshot);
+        if ($screenshot !== null) {
+            $validated['screenshot'] = $screenshot;
+        }
 
         $beaverBuilderLayout->update(Arr::except($validated, ['category_ids']));
 
@@ -67,8 +81,64 @@ class BeaverBuilderLayoutController extends Controller
 
     public function destroy(BeaverBuilderLayout $beaverBuilderLayout): Response
     {
+        if (
+            $beaverBuilderLayout->screenshot
+            && ! Str::startsWith($beaverBuilderLayout->screenshot, ['http://', 'https://'])
+        ) {
+            Storage::disk('public')->delete($beaverBuilderLayout->screenshot);
+        }
+
         $beaverBuilderLayout->delete();
 
         return response()->noContent();
+    }
+
+    private function handleScreenshotUpload(Request $request, ?string $existingPath = null): ?string
+    {
+        if ($request->hasFile('screenshot')) {
+            if (
+                $existingPath
+                && ! Str::startsWith($existingPath, ['http://', 'https://'])
+            ) {
+                Storage::disk('public')->delete($existingPath);
+            }
+
+            $file = $request->file('screenshot');
+            $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
+
+            return $file->storeAs('beaver-layouts-screenshots', $filename, 'public');
+        }
+
+        if ($request->boolean('remove_screenshot')) {
+            if (
+                $existingPath
+                && ! Str::startsWith($existingPath, ['http://', 'https://'])
+            ) {
+                Storage::disk('public')->delete($existingPath);
+            }
+
+            return '';
+        }
+
+        return null;
+    }
+
+    private function decodeMeta(mixed $meta): ?array
+    {
+        if ($meta === null || $meta === '') {
+            return null;
+        }
+
+        if (is_array($meta)) {
+            return $meta;
+        }
+
+        if (is_string($meta)) {
+            $decoded = json_decode($meta, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        return null;
     }
 }

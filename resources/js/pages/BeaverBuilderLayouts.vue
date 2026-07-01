@@ -123,6 +123,11 @@ const formMessage = ref<string | null>(null);
 const deleteMessage = ref<string | null>(null);
 const serverErrors = ref<Record<string, string>>({});
 
+const screenshotFile = ref<File | null>(null);
+const screenshotPreview = ref<string | null>(null);
+const removeScreenshot = ref(false);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
 const isEditing = computed(() => editingLayoutId.value !== null);
 const modalTitle = computed(() =>
     isEditing.value ? 'Edit Layout' : 'Create Layout',
@@ -206,6 +211,19 @@ const fetchCategories = async (): Promise<void> => {
     }
 };
 
+const previewImageUrl = ref<string | null>(null);
+const isImagePreviewOpen = ref(false);
+
+const openImagePreview = (url: string): void => {
+    previewImageUrl.value = url;
+    isImagePreviewOpen.value = true;
+};
+
+const closeImagePreview = (): void => {
+    isImagePreviewOpen.value = false;
+    previewImageUrl.value = null;
+};
+
 const formatDate = (value: string | null): string => {
     if (!value) return '-';
     return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value));
@@ -231,11 +249,30 @@ const resetForm = (): void => {
     editingLayoutId.value = null;
     formMessage.value = null;
     serverErrors.value = {};
+    screenshotFile.value = null;
+    screenshotPreview.value = null;
+    removeScreenshot.value = false;
 };
 
 const openCreateModal = (): void => {
     resetForm();
     isModalOpen.value = true;
+};
+
+const handleScreenshotFile = (event: Event): void => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+    screenshotFile.value = file;
+    removeScreenshot.value = false;
+    screenshotPreview.value = URL.createObjectURL(file);
+};
+
+const clearScreenshot = (): void => {
+    screenshotFile.value = null;
+    screenshotPreview.value = null;
+    removeScreenshot.value = true;
+    state.screenshot = '';
 };
 
 const openEditModal = (layout: Layout): void => {
@@ -248,6 +285,9 @@ const openEditModal = (layout: Layout): void => {
     editingLayoutId.value = layout.id;
     formMessage.value = null;
     serverErrors.value = {};
+    screenshotFile.value = null;
+    screenshotPreview.value = layout.screenshot ?? null;
+    removeScreenshot.value = false;
     isModalOpen.value = true;
 };
 
@@ -267,27 +307,74 @@ const parseMeta = (): Record<string, unknown> | null => {
     }
 };
 
-const buildPayload = () => ({
-    title: state.title,
-    type: state.type,
-    content: state.content,
-    meta: parseMeta(),
-    screenshot: state.screenshot || null,
-    category_ids: selectedCategoryIds.value,
-});
+const buildPayload = (): Record<string, unknown> | FormData => {
+    if (screenshotFile.value) {
+        const formData = new FormData();
+        formData.append('title', state.title);
+        formData.append('type', state.type);
+        formData.append('content', state.content);
+        const meta = parseMeta();
+        if (meta !== null) {
+            formData.append('meta', JSON.stringify(meta));
+        }
+        formData.append('screenshot', screenshotFile.value);
+        selectedCategoryIds.value.forEach((id) => {
+            formData.append('category_ids[]', id.toString());
+        });
+        return formData;
+    }
+
+    if (removeScreenshot.value) {
+        return {
+            title: state.title,
+            type: state.type,
+            content: state.content,
+            meta: parseMeta(),
+            screenshot: '',
+            remove_screenshot: '1',
+            category_ids: selectedCategoryIds.value,
+        };
+    }
+
+    return {
+        title: state.title,
+        type: state.type,
+        content: state.content,
+        meta: parseMeta(),
+        screenshot: state.screenshot || null,
+        category_ids: selectedCategoryIds.value,
+    };
+};
 
 const storeLayout = async (): Promise<Layout> => {
+    const payload = buildPayload();
+    if (payload instanceof FormData) {
+        const res = await axios.post<ResourceResponse<Layout>>(
+            '/ajax/beaver-builder-layouts',
+            payload,
+        );
+        return res.data.data;
+    }
     const res = await axios.post<ResourceResponse<Layout>>(
         '/ajax/beaver-builder-layouts',
-        buildPayload(),
+        payload,
     );
     return res.data.data;
 };
 
 const updateLayout = async (id: number): Promise<Layout> => {
+    const payload = buildPayload();
+    if (payload instanceof FormData) {
+        payload.append('_method', 'PATCH');
+        const res = await axios.post<ResourceResponse<Layout>>(
+            `/ajax/beaver-builder-layouts/${id}`,
+            payload,
+        );
+        return res.data.data;
+    }
     const res = await axios.patch<ResourceResponse<Layout>>(
         `/ajax/beaver-builder-layouts/${id}`,
-        buildPayload(),
+        payload,
     );
     return res.data.data;
 };
@@ -485,9 +572,14 @@ onMounted(() => {
                 </template>
 
                 <template #screenshot-cell="{ row }">
-                    <span v-if="row.original.screenshot" class="text-sm text-muted truncate max-w-32 block">
-                        {{ row.original.screenshot }}
-                    </span>
+                    <div v-if="row.original.screenshot" class="flex items-center">
+                        <img
+                            :src="row.original.screenshot"
+                            alt="Screenshot"
+                            class="h-10 w-16 rounded object-cover border border-default cursor-pointer"
+                            @click="openImagePreview(row.original.screenshot ?? '')"
+                        />
+                    </div>
                     <span v-else class="text-sm text-muted">-</span>
                 </template>
 
@@ -604,12 +696,32 @@ onMounted(() => {
                     </UFormField>
 
                     <UFormField name="screenshot" label="Screenshot" hint="Optional" :error="fieldError('screenshot')">
-                        <UInput
-                            v-model="state.screenshot"
-                            placeholder="screenshot.jpg"
-                            :disabled="isSaving"
-                            class="w-full"
-                        />
+                        <div class="flex flex-col gap-3 w-full">
+                            <div v-if="screenshotPreview" class="relative inline-flex">
+                                <img
+                                    :src="screenshotPreview"
+                                    alt="Screenshot preview"
+                                    class="max-h-40 rounded-lg border border-default object-cover"
+                                />
+                                <UButton
+                                    icon="i-lucide-x"
+                                    color="neutral"
+                                    variant="ghost"
+                                    size="2xs"
+                                    class="absolute top-1 right-1"
+                                    :disabled="isSaving"
+                                    @click="clearScreenshot"
+                                />
+                            </div>
+                            <UInput
+                                ref="fileInputRef"
+                                type="file"
+                                accept="image/*"
+                                :disabled="isSaving"
+                                class="w-full"
+                                @change="handleScreenshotFile"
+                            />
+                        </div>
                     </UFormField>
 
                     <UFormField name="category_ids" label="Categories" hint="Optional">
@@ -672,6 +784,24 @@ onMounted(() => {
                     color="error"
                     :loading="isDeleting"
                     @click="deleteLayout"
+                />
+            </template>
+        </UModal>
+
+        <UModal
+            v-model:open="isImagePreviewOpen"
+            title="Screenshot Preview"
+            :ui="{
+                body: 'p-0',
+                footer: 'hidden',
+            }"
+        >
+            <template #body>
+                <img
+                    v-if="previewImageUrl"
+                    :src="previewImageUrl"
+                    alt="Screenshot full"
+                    class="w-full h-auto max-h-[80vh] object-contain"
                 />
             </template>
         </UModal>
