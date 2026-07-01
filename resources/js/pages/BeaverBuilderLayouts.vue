@@ -110,6 +110,7 @@ const meta = ref<PaginationMeta | null>(null);
 const categories = ref<Category[]>([]);
 const selectedCategoryIds = ref<number[]>([]);
 const search = ref('');
+const filterType = ref<string | null>(null);
 const currentPage = ref(1);
 const isLoading = ref(true);
 const isSaving = ref(false);
@@ -149,9 +150,11 @@ const deleteModalDescription = computed(() => {
 
 const filteredLayouts = computed(() => {
     const query = search.value.trim().toLowerCase();
-    if (query === '') return layoutData.value;
+    const type = filterType.value;
 
     return layoutData.value.filter((layout) => {
+        if (type && layout.type !== type) return false;
+        if (!query) return true;
         const searchable = [layout.title, layout.type, layout.screenshot ?? '']
             .filter(Boolean)
             .join(' ')
@@ -502,6 +505,15 @@ onMounted(() => {
                     placeholder="Search layouts..."
                     :disabled="isLoading"
                     class="w-full sm:w-64"
+                />
+                <USelect
+                    v-model="filterType"
+                    :items="[
+                        { label: 'All Types', value: null },
+                        ...typeOptions,
+                    ]"
+                    :disabled="isLoading"
+                    class="w-44"
                 />
                 <UButton
                     icon="i-lucide-plus"
