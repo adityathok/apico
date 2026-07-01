@@ -14,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class BeaverBuilderLayoutController extends Controller
 {
+    private const array THEME_LAYOUT_TYPES = ['header', 'footer', 'archive', 'singular', '404', 'part'];
+
     public function index(): AnonymousResourceCollection
     {
         return BeaverBuilderLayoutResource::collection(
@@ -28,11 +30,16 @@ class BeaverBuilderLayoutController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['theme-layout', 'template-layout', 'row', 'module'])],
+            'theme_layout_type' => ['nullable', 'string', Rule::in(self::THEME_LAYOUT_TYPES)],
             'content' => ['required', 'string'],
             'meta' => ['nullable'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:beaver_builder_template_categories,id'],
         ]);
+
+        if ($validated['type'] !== 'theme-layout') {
+            $validated['theme_layout_type'] = null;
+        }
 
         $validated['meta'] = $this->decodeMeta($validated['meta'] ?? null);
 
@@ -57,11 +64,16 @@ class BeaverBuilderLayoutController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', Rule::in(['theme-layout', 'template-layout', 'row', 'module'])],
+            'theme_layout_type' => ['nullable', 'string', Rule::in(self::THEME_LAYOUT_TYPES)],
             'content' => ['sometimes', 'required', 'string'],
             'meta' => ['nullable'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:beaver_builder_template_categories,id'],
         ]);
+
+        if (isset($validated['type']) && $validated['type'] !== 'theme-layout') {
+            $validated['theme_layout_type'] = null;
+        }
 
         $validated['meta'] = $this->decodeMeta($validated['meta'] ?? null);
 

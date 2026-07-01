@@ -13,6 +13,7 @@ type Layout = {
     id: number;
     title: string;
     type: string;
+    theme_layout_type: string | null;
     content: string;
     meta: Record<string, unknown> | null;
     screenshot: string | null;
@@ -44,6 +45,7 @@ type ResourceResponse<T> = {
 type LayoutFormState = {
     title: string;
     type: string;
+    theme_layout_type: string;
     content: string;
     meta: string;
     screenshot: string;
@@ -75,6 +77,15 @@ const typeOptions = [
     { label: 'Module', value: 'module' },
 ];
 
+const themeLayoutTypeOptions = [
+    { label: 'Header', value: 'header' },
+    { label: 'Footer', value: 'footer' },
+    { label: 'Archive', value: 'archive' },
+    { label: 'Singular', value: 'singular' },
+    { label: '404', value: '404' },
+    { label: 'Part', value: 'part' },
+];
+
 const columns: TableColumn<Layout>[] = [
     {
         accessorKey: 'title',
@@ -100,6 +111,7 @@ const columns: TableColumn<Layout>[] = [
 const state = reactive<LayoutFormState>({
     title: '',
     type: 'theme-layout',
+    theme_layout_type: '',
     content: '',
     meta: '',
     screenshot: '',
@@ -245,6 +257,7 @@ const fieldError = (name: string): string | undefined => serverErrors.value[name
 const resetForm = (): void => {
     state.title = '';
     state.type = 'theme-layout';
+    state.theme_layout_type = '';
     state.content = '';
     state.meta = '';
     state.screenshot = '';
@@ -281,6 +294,7 @@ const clearScreenshot = (): void => {
 const openEditModal = (layout: Layout): void => {
     state.title = layout.title;
     state.type = layout.type;
+    state.theme_layout_type = layout.theme_layout_type ?? '';
     state.content = layout.content;
     state.meta = layout.meta ? JSON.stringify(layout.meta, null, 2) : '';
     state.screenshot = layout.screenshot ?? '';
@@ -311,11 +325,20 @@ const parseMeta = (): Record<string, unknown> | null => {
 };
 
 const buildPayload = (): Record<string, unknown> | FormData => {
+    const baseData: Record<string, unknown> = {
+        title: state.title,
+        type: state.type,
+        content: state.content,
+        meta: parseMeta(),
+        theme_layout_type: state.theme_layout_type || null,
+    };
+
     if (screenshotFile.value) {
         const formData = new FormData();
         formData.append('title', state.title);
         formData.append('type', state.type);
         formData.append('content', state.content);
+        formData.append('theme_layout_type', state.theme_layout_type || '');
         const meta = parseMeta();
         if (meta !== null) {
             formData.append('meta', JSON.stringify(meta));
@@ -329,10 +352,7 @@ const buildPayload = (): Record<string, unknown> | FormData => {
 
     if (removeScreenshot.value) {
         return {
-            title: state.title,
-            type: state.type,
-            content: state.content,
-            meta: parseMeta(),
+            ...baseData,
             screenshot: '',
             remove_screenshot: '1',
             category_ids: selectedCategoryIds.value,
@@ -340,10 +360,7 @@ const buildPayload = (): Record<string, unknown> | FormData => {
     }
 
     return {
-        title: state.title,
-        type: state.type,
-        content: state.content,
-        meta: parseMeta(),
+        ...baseData,
         screenshot: state.screenshot || null,
         category_ids: selectedCategoryIds.value,
     };
@@ -576,11 +593,19 @@ onMounted(() => {
                 </template>
 
                 <template #type-cell="{ row }">
-                    <UBadge
-                        :color="typeBadgeColor(row.original.type)"
-                        variant="subtle"
-                        :label="typeLabel(row.original.type)"
-                    />
+                    <div class="flex items-center gap-1.5">
+                        <UBadge
+                            :color="typeBadgeColor(row.original.type)"
+                            variant="subtle"
+                            :label="typeLabel(row.original.type)"
+                        />
+                        <UBadge
+                            v-if="row.original.theme_layout_type"
+                            color="neutral"
+                            variant="outline"
+                            :label="row.original.theme_layout_type"
+                        />
+                    </div>
                 </template>
 
                 <template #screenshot-cell="{ row }">
@@ -680,6 +705,21 @@ onMounted(() => {
                         <USelect
                             v-model="state.type"
                             :items="typeOptions"
+                            :disabled="isSaving"
+                            class="w-full"
+                        />
+                    </UFormField>
+
+                    <UFormField
+                        v-if="state.type === 'theme-layout'"
+                        name="theme_layout_type"
+                        label="Theme Layout Type"
+                        hint="Tentukan jenis theme layout"
+                        :error="fieldError('theme_layout_type')"
+                    >
+                        <USelect
+                            v-model="state.theme_layout_type"
+                            :items="themeLayoutTypeOptions"
                             :disabled="isSaving"
                             class="w-full"
                         />

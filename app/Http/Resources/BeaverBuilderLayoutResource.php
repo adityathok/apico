@@ -27,6 +27,7 @@ class BeaverBuilderLayoutResource extends JsonResource
                     ? $this->screenshot
                     : Storage::disk('public')->url($this->screenshot))
                 : null,
+            'theme_layout_type' => $this->theme_layout_type,
             'categories' => BeaverBuilderTemplateCategoryResource::collection($this->whenLoaded('categories')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

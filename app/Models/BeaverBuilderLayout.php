@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['title', 'type', 'content', 'meta', 'screenshot'])]
+#[Fillable(['title', 'type', 'theme_layout_type', 'content', 'meta', 'screenshot'])]
 class BeaverBuilderLayout extends Model
 {
     public function categories(): BelongsToMany
