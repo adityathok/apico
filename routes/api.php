@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AiProviderController as ApiV1AiProviderController;
+use App\Http\Controllers\Api\V1\BeaverBuilderController as ApiV1BeaverBuilderController;
 use App\Http\Controllers\Api\V1\LicenseController as ApiV1LicenseController;
 use App\Http\Controllers\Api\V1\NewsController as ApiV1NewsController;
 use App\Http\Controllers\Api\V1\ProjectController as ApiV1ProjectController;
@@ -39,6 +40,11 @@ Route::middleware(['license'])->prefix('v1')->group(function () {
     Route::post('/article-generator', [ArticleGeneratorController::class, 'generate']);
     Route::get('/recommended-images', [PostController::class, 'recommendedImages']);
     Route::post('/ai/chat', [ApiV1AiProviderController::class, 'chat']);
+
+    Route::get('/beaver-builder-layouts', [ApiV1BeaverBuilderController::class, 'index']);
+    Route::post('/beaver-builder-layout', [ApiV1BeaverBuilderController::class, 'store']);
+    Route::get('/beaver-builder-layout/{beaver_builder_layout}', [ApiV1BeaverBuilderController::class, 'show']);
+    Route::get('/beaver-builder-template-categories', [ApiV1BeaverBuilderController::class, 'categories']);
 });
 
 Route::middleware('registered.server.ip')->prefix('v1')->group(function () {
