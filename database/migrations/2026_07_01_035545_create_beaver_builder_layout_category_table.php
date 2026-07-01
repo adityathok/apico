@@ -13,8 +13,12 @@ return new class extends Migration
     {
         Schema::create('beaver_builder_layout_category', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('beaver_builder_layout_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('beaver_builder_template_category_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('beaver_builder_layout_id');
+            $table->foreignId('beaver_builder_template_category_id');
+            $table->foreign('beaver_builder_layout_id', 'bb_lc_layout_fk')
+                ->references('id')->on('beaver_builder_layouts')->cascadeOnDelete();
+            $table->foreign('beaver_builder_template_category_id', 'bb_lc_category_fk')
+                ->references('id')->on('beaver_builder_template_categories')->cascadeOnDelete();
             $table->timestamps();
         });
     }
