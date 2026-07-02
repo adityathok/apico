@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DocsApiController;
+use App\Http\Controllers\RouteTesterController;
 use App\Http\Controllers\ArticleGeneratorController;
 use App\Http\Controllers\BeaverBuilderLayoutController;
 use App\Http\Controllers\BeaverBuilderTemplateCategoryController;
@@ -44,6 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/requestlogs', [RequestLogController::class, 'index'])->name('requestlogsIndex');
 
     Route::get('admin/docs-api', DocsApiController::class)->name('docs-api');
+    Route::get('admin/route-testers', RouteTesterController::class)->name('route-testers');
 });
 
 Route::middleware(['auth'])->prefix('ajax')->group(function () {
@@ -70,4 +72,4 @@ Route::middleware(['auth'])->prefix('ajax')->group(function () {
     Route::post('article-generator-by-agent', [ArticleGeneratorController::class, 'generate_by_agent']);
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';

@@ -24,7 +24,7 @@ import {
     servers,
     websites,
     requestlogsIndex,
-    docsApi,
+    routeTesters,
     beaverBuilderLayouts,
 } from '@/routes';
 import {
@@ -107,8 +107,8 @@ const mainNavItems: NavItem[] = [
         icon: RefreshCw,
     },
     {
-        title: 'API Docs',
-        href: docsApi(),
+        title: 'API Route Testers',
+        href: routeTesters(),
         icon: BookMarked,
     },
 ];
