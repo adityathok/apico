@@ -31,7 +31,7 @@ import {
     FileText,
     SquareCode,
     LayoutGrid,
-    BookOpen,
+    Route,
     FolderKanban,
     Users as UsersIcon,
     Folder,
@@ -109,7 +109,7 @@ const mainNavItems: NavItem[] = [
     {
         title: 'API Route Testers',
         href: routeTesters(),
-        icon: BookMarked,
+        icon: Route,
     },
 ];
 

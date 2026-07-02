@@ -2,6 +2,18 @@
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, ref, watch } from 'vue';
+import { routeTesters } from '@/routes';
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            {
+                title: 'Route Testers',
+                href: routeTesters(),
+            },
+        ],
+    },
+});
 
 type RouteItem = {
     methods: string[];
@@ -228,11 +240,8 @@ function getStatusColor(status: number): string {
     <Head title="API Docs" />
 
     <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-        <div class="flex flex-col gap-3 rounded-xl border border-default bg-default p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="shadow flex flex-col gap-3 rounded-xl border border-default bg-default p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-2xl font-semibold text-highlighted">
-                    API Route Testers
-                </h1>
                 <p class="text-sm text-muted">
                     Daftar seluruh route API yang tersedia. Klik "Send" untuk menguji endpoint.
                 </p>
@@ -261,7 +270,7 @@ function getStatusColor(status: number): string {
             <div
                 v-for="prefix in routePrefixes"
                 :key="prefix"
-                class="rounded-xl border border-default bg-default"
+                class="shadow rounded-xl border border-default bg-default"
             >
                 <button
                     class="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted/20"
